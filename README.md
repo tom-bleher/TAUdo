@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" width="160" alt="TAUdo logo"></p>
+
 # TAUdo
 
 A macOS menu bar companion for TAU students. It combines the cube progress tracker (`track.html`) with the Moodle calendar sync (`../tau-moodle-calendar`).
