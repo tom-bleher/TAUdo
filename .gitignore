@@ -1,0 +1,5 @@
+build/
+TAUdo.app/
+*.xcodeproj/
+Sources/Info.plist
+.DS_Store
