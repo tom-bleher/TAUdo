@@ -12,6 +12,10 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ""
     SWIFT_EMIT_LOC_STRINGS: YES
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    version: 2.10.1
 targets:
   TAUdo:
     type: application
@@ -20,6 +24,9 @@ targets:
       - Sources
       - path: assets/AppIcon.icns
         buildPhase: resources
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
     info:
       path: Sources/Info.plist
       properties:
@@ -32,6 +39,10 @@ targets:
           - CFBundleURLName: io.github.tombleher.TAUdo.sync
             CFBundleURLSchemes: [taudo]
         LSApplicationCategoryType: public.app-category.education
+        # Updates: scripts/release.sh publishes the DMG and a signed appcast.xml to GitHub Releases.
+        SUFeedURL: https://github.com/tom-bleher/TAUdo/releases/latest/download/appcast.xml
+        SUPublicEDKey: yLwyCH132n81/2oMALJKB3w2JC64YMCKjxO2cpMtsEQ=
+        SUEnableAutomaticChecks: true
         NSCalendarsFullAccessUsageDescription: TAUdo writes your Moodle deadlines into its own calendar so they show up in Apple Calendar.
         NSCalendarsUsageDescription: TAUdo writes your Moodle deadlines into its own calendar so they show up in Apple Calendar.
     settings:

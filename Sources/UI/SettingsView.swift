@@ -55,8 +55,25 @@ struct GeneralSettings: View {
                     Text(verbatim: "English").tag("en")
                 }
             } footer: { Text("TAUdo restarts to switch language.").footnote() }
+            UpdatesSection()
         }
         .settingsForm()
+    }
+}
+
+private struct UpdatesSection: View {
+    @Bindable private var updates = Updates.shared
+
+    var body: some View {
+        Section {
+            Toggle("Check for updates automatically", isOn: $updates.checksAutomatically)
+            Toggle("Install updates automatically", isOn: $updates.installsAutomatically)
+                .disabled(!updates.checksAutomatically)
+            Button("Check for Updates…") { updates.check() }.disabled(!updates.canCheck)
+        } header: { Text("Updates") } footer: {
+            let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+            Text("Version \(v). Updates install when TAUdo quits.").footnote()
+        }
     }
 }
 

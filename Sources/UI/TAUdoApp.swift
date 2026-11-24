@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         Notifier.registerActions()
         Self.model.start()
+        _ = Updates.shared
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.indices.contains(i + 1) {
             let dir = URL(fileURLWithPath: CommandLine.arguments[i + 1])
             Task { await Snapshot.run(into: dir, model: Self.model) }

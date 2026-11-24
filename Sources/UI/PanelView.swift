@@ -66,6 +66,7 @@ struct PanelView: View {
                 Divider()
                 Button("Connect Moodle in browser…") { model.connect() }
                 Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey) }
+                Button("Check for Updates…") { show { Updates.shared.check() } }
                 Button("Settings…") { show { openSettings() } }.keyboardShortcut(",")
                 Divider()
                 Button("Quit TAUdo") { NSApp.terminate(nil) }.keyboardShortcut("q")
