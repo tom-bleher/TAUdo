@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// `TAUdo --demo --snapshot <dir>`: renders the panel and settings offscreen to PNGs (for checks and README screenshots).
+/// `TAUdo --demo --snapshot <dir>`: renders the panel, the app in the menu bar, and settings offscreen to PNGs
+/// (for checks and README screenshots).
 /// Language and appearance come from the usual flags, e.g. `-language en -AppleLanguages '(en)'`, `--dark`.
 @MainActor
 enum Snapshot {
@@ -16,6 +17,8 @@ enum Snapshot {
             UserDefaults.standard.set(tab.rawValue, forKey: "panelTab")
             render(PanelView(), model: model, width: PanelView.width, to: dir.appendingPathComponent("panel-\(tab.rawValue)\(suffix).png"), dark: dark)
         }
+        UserDefaults.standard.set(PanelView.Tab.due.rawValue, forKey: "panelTab")
+        render(InMenuBar(dark: dark), model: model, width: InMenuBar.width, to: dir.appendingPathComponent("menubar\(suffix).png"), dark: dark)
         let w = SettingsView.width
         render(GeneralSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-general\(suffix).png"), dark: dark)
         render(MoodleSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-moodle\(suffix).png"), dark: dark)
@@ -47,5 +50,34 @@ enum Snapshot {
         guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
         host.cacheDisplay(in: host.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
+}
+
+/// The app as you use it: its menu bar item, highlighted, with the panel open below it (centred, as macOS places it).
+private struct InMenuBar: View {
+    static let margin: CGFloat = 44
+    static let width = PanelView.width + 2 * margin
+    let dark: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 5) { MenuBarLabel() }
+                .font(.system(size: 13, weight: .medium))
+                .padding(.horizontal, 9).frame(height: 22)
+                .background(.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                .frame(maxWidth: .infinity).frame(height: 30)
+                .background(Color(white: dark ? 0.1 : 0.97).opacity(0.92))
+            PanelView()
+                .frame(width: PanelView.width)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.primary.opacity(0.1)))
+                .shadow(color: .black.opacity(0.28), radius: 22, y: 10)
+                .padding(.top, 8).padding(.bottom, Self.margin)
+        }
+        .frame(width: Self.width)
+        .background(LinearGradient(colors: dark ? [Color(red: 0.10, green: 0.13, blue: 0.24), Color(red: 0.05, green: 0.06, blue: 0.12)]
+                                                 : [Color(red: 0.80, green: 0.86, blue: 0.96), Color(red: 0.93, green: 0.90, blue: 0.97)],
+                                   startPoint: .top, endPoint: .bottom))
     }
 }
