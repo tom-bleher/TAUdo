@@ -77,7 +77,7 @@ Requires Xcode and XcodeGen (`brew install xcodegen`).
 ```sh
 scripts/build.sh test            # unit tests, then ./TAUdo.app (Release)
 scripts/check_translations.sh    # every UI string has a Hebrew translation
-scripts/make_icon.sh             # app icon and logo images from Sources/UI/Logo.swift
+scripts/make_icon.sh             # app icon, logo and DMG images from Sources/UI/Logo.swift
 scripts/release.sh               # dist/TAUdo-<version>.zip (SIGN_ID / NOTARY_PROFILE to sign and notarize)
 ```
 
@@ -99,7 +99,6 @@ Tests             XCTest
 
 ## Logo
 
-- **App icon:** TAU's solid circle with its torch emblem, with the bowl redrawn as a check mark.
-- **Logo above and menu bar:** a check mark in a solid circle, followed by TAU's heavy ring and interlocking rings. The three circles read as a checklist (done, in progress, to do).
+The logo is a check mark in a solid circle, followed by TAU's heavy ring and interlocking rings. The three circles read as a checklist (done, in progress, to do). The app icon is the check circle, and the installer has you drag it into its place in the logo.
 
 TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.

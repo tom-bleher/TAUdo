@@ -1,85 +1,59 @@
 import AppKit
 
-/// TAUdo marks, after Tel Aviv University's logo with a to-do twist:
-/// - Badge (app icon): the logo's solid circle with the torch emblem, whose bowl is a check mark.
-/// - Lockup (README): the badge followed by the logo's heavy ring and interlocking rings, taken from TAU's logo artwork.
-/// - Menu bar: the same three circles as a checklist — done (✓), in progress, to do.
-/// For personal use; the TAU logo is the university's trademark.
+/// The TAUdo logo: three circles as a checklist — done (a solid circle with a ✓), in progress (a heavy ring),
+/// to do (interlocking rings). The rings are taken from Tel Aviv University's logo artwork (its trademark).
+/// - Menu bar and README: the whole logo.
+/// - App icon: the check circle on a white tile.
+/// - DMG window: the rings with an empty slot for the check circle, which you fill by dragging the app in.
 enum Logo {
-    static let navy = CGColor(srgbRed: 0.05, green: 0.17, blue: 0.36, alpha: 1)
-    static let navyLight = CGColor(srgbRed: 0.11, green: 0.27, blue: 0.50, alpha: 1)
+    static let ink = CGColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
+    /// Diameter of the check circle in the app icon, as a fraction of the icon (centred).
+    static let iconCircle: CGFloat = 0.62
 
     private static func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: y) }
 
-    /// Teardrop flame pointing up, symmetric about x = cx.
-    private static func drop(_ path: CGMutablePath, cx: CGFloat, top: CGFloat, bottom: CGFloat, halfWidth w: CGFloat) {
-        let h = bottom - top, wide = top + 0.68 * h
-        path.move(to: p(cx, top))
-        path.addCurve(to: p(cx + w, wide), control1: p(cx + 0.3 * w, top + 0.22 * h), control2: p(cx + w, top + 0.42 * h))
-        path.addCurve(to: p(cx, bottom), control1: p(cx + w, wide + 0.2 * h), control2: p(cx + 0.45 * w, bottom))
-        path.addCurve(to: p(cx - w, wide), control1: p(cx - 0.45 * w, bottom), control2: p(cx - w, wide + 0.2 * h))
-        path.addCurve(to: p(cx, top), control1: p(cx - w, top + 0.42 * h), control2: p(cx - 0.3 * w, top + 0.22 * h))
-        path.closeSubpath()
-    }
-
-    static let stemX: CGFloat = 0.40
-
-    /// Flame and check-bowl in a unit box (y down). Fill with the even-odd rule.
-    static func emblem() -> CGPath {
-        let path = CGMutablePath()
-        let cx = stemX
-        // Torch flame: solid, with a dark inner flame holding a thin light sliver.
-        drop(path, cx: cx, top: 0.00, bottom: 0.50, halfWidth: 0.11)
-        drop(path, cx: cx, top: 0.18, bottom: 0.42, halfWidth: 0.045)
-        drop(path, cx: cx, top: 0.28, bottom: 0.40, halfWidth: 0.014)
-        // Bowl drawn as a check mark: straight outer edges, flat tops, a crescent inside around the flame.
-        path.move(to: p(0.00, 0.40))
-        path.addLine(to: p(cx - 0.03, 0.97))
-        path.addLine(to: p(cx + 0.03, 0.97))
-        path.addLine(to: p(1.00, 0.06))
-        path.addLine(to: p(0.80, 0.11))
-        path.addCurve(to: p(cx, 0.72), control1: p(0.62, 0.40), control2: p(0.52, 0.72))
-        path.addCurve(to: p(0.19, 0.45), control1: p(0.28, 0.72), control2: p(0.22, 0.60))
-        path.closeSubpath()
-        return path
-    }
-
-    /// Stem from the flame through the bowl, with ת and א either side, as in the emblem.
-    private static func stemAndLetters(_ ctx: CGContext) {
-        ctx.fill(CGRect(x: stemX - 0.014, y: 0.48, width: 0.028, height: 0.26))   // thin stem under the flame
-        ctx.fill(CGRect(x: stemX - 0.035, y: 0.95, width: 0.07, height: 0.33))    // stem between the letters
-        let font = CTFontCreateWithName("ArialHebrew-Bold" as CFString, 0.36, nil)
-        func glyph(_ s: String, right: CGFloat? = nil, left: CGFloat? = nil) {
-            let line = CTLineCreateWithAttributedString(NSAttributedString(string: s, attributes: [
-                .init(kCTFontAttributeName as String): font, .init(kCTForegroundColorFromContextAttributeName as String): true]))
-            let w = CTLineGetTypographicBounds(line, nil, nil, nil)
-            ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)   // y-down context
-            ctx.textPosition = p(right.map { $0 - w } ?? left ?? 0, 1.28)
-            CTLineDraw(line, ctx)
-        }
-        glyph("ת", right: stemX - 0.045)
-        glyph("א", left: stemX + 0.045)
-    }
-
-    /// The badge: a navy circle with the white emblem, filling `rect` (y-up context).
-    static func drawBadge(_ ctx: CGContext, in rect: CGRect) {
+    /// The check circle filling `b` (y-up context): the ✓ drawn in `check`, or knocked out when nil.
+    static func drawCheckCircle(_ ctx: CGContext, in b: CGRect, color: CGColor, check: CGColor? = nil) {
         ctx.saveGState()
-        ctx.translateBy(x: rect.minX, y: rect.maxY); ctx.scaleBy(x: rect.width, y: -rect.height)   // unit square, y down
-        ctx.saveGState()
-        ctx.addEllipse(in: CGRect(x: 0, y: 0, width: 1, height: 1)); ctx.clip()
-        ctx.drawLinearGradient(CGGradient(colorsSpace: nil, colors: [navyLight, navy] as CFArray, locations: [0, 1])!,
-                               start: p(0.5, 0), end: p(0.5, 1), options: [])
-        ctx.restoreGState()
-        // White emblem centred in the circle (the stem sits on the centre line).
-        let w: CGFloat = 0.56
-        ctx.translateBy(x: 0.5 - stemX * w, y: 0.13); ctx.scaleBy(x: w, y: w)
-        ctx.setFillColor(.white)
-        ctx.addPath(emblem()); ctx.fillPath(using: .evenOdd)
-        stemAndLetters(ctx)
+        ctx.setFillColor(color)
+        ctx.fillEllipse(in: b)
+        if let check { ctx.setStrokeColor(check) } else { ctx.setBlendMode(.clear); ctx.setStrokeColor(.black) }
+        ctx.setLineWidth(b.width * 0.14); ctx.setLineCap(.round); ctx.setLineJoin(.round)
+        ctx.move(to: p(b.minX + b.width * 0.27, b.minY + b.height * 0.48))
+        ctx.addLine(to: p(b.minX + b.width * 0.44, b.minY + b.height * 0.31))
+        ctx.addLine(to: p(b.minX + b.width * 0.74, b.minY + b.height * 0.68))
+        ctx.strokePath()
         ctx.restoreGState()
     }
 
-    /// App icon: the badge on a white macOS icon tile, into a `size`-point square (y-up context).
+    /// The heavy ring and interlocking rings, placed for a check circle in `circle` (y-up context).
+    static func drawRings(_ ctx: CGContext, beside circle: CGRect, color: CGColor) {
+        let k = circle.width / tauCircle.width
+        ctx.saveGState()
+        ctx.translateBy(x: circle.minX - tauCircle.minX * k, y: circle.minY - tauCircle.minY * k)
+        ctx.scaleBy(x: k, y: k)
+        ctx.setFillColor(color)
+        for path in ringPaths { ctx.addPath(path) }
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
+    /// The whole logo, `height` points tall, from x = 0 (y-up context).
+    static func drawLogo(_ ctx: CGContext, height h: CGFloat, color: CGColor = .black) {
+        let bounds = ringPaths.reduce(tauCircle) { $0.union($1.boundingBoxOfPath) }
+        let k = (h - 1) / bounds.height
+        let circle = CGRect(x: (tauCircle.minX - bounds.minX) * k, y: 0.5 + (tauCircle.minY - bounds.minY) * k,
+                            width: tauCircle.width * k, height: tauCircle.height * k)
+        drawCheckCircle(ctx, in: circle, color: color)
+        drawRings(ctx, beside: circle, color: color)
+    }
+
+    static func logoWidth(height h: CGFloat) -> CGFloat {
+        let bounds = ringPaths.reduce(tauCircle) { $0.union($1.boundingBoxOfPath) }
+        return ceil(bounds.width * (h - 1) / bounds.height)
+    }
+
+    /// App icon: the check circle on a white macOS icon tile, into a `size`-point square (y-up context).
     static func drawIcon(_ ctx: CGContext, size: CGFloat) {
         ctx.saveGState()
         ctx.scaleBy(x: size, y: size)
@@ -90,15 +64,16 @@ enum Logo {
         ctx.setShadow(offset: CGSize(width: 0, height: -0.012), blur: 0.03, color: CGColor(gray: 0, alpha: 0.3))
         ctx.addPath(tile); ctx.setFillColor(.white); ctx.fillPath()
         ctx.restoreGState()
-        drawBadge(ctx, in: CGRect(x: 0.17, y: 0.17, width: 0.66, height: 0.66))
+        let o = (1 - iconCircle) / 2
+        drawCheckCircle(ctx, in: CGRect(x: o, y: o, width: iconCircle, height: iconCircle), color: ink, check: .white)
         ctx.restoreGState()
     }
 
     // MARK: TAU's ring shapes
 
     /// From TAU's logo artwork (PDF units, y up): the heavy ring and the three interlocking rings,
-    /// plus the bounding circle of the left badge they sit next to.
-    private static let tauBadge = CGRect(x: 496.1422 - 18.372, y: 85.699 - 35.894, width: 36.745, height: 35.894)
+    /// plus the bounding circle of the check circle they sit next to.
+    private static let tauCircle = CGRect(x: 496.1422 - 18.372, y: 85.699 - 35.894, width: 36.745, height: 35.894)
     private static let tauRings: [(dx: CGFloat, dy: CGFloat, d: String)] = [
         (553.7148, 70.1595, "m 0,0 c 0,8.568 -7.136,15.539 -15.908,15.539 -3.446,0 -6.705,-1.053 -9.459,-3.05 -6.724,-1.945 -11.378,-8.003 -11.378,-14.897 0,-6.894 4.655,-12.953 11.379,-14.898 2.753,-1.996 6.012,-3.048 9.458,-3.048 8.772,0 15.908,6.97 15.908,15.537 0,0.797 -0.065,1.605 -0.194,2.408 C -0.065,-1.605 0,-0.796 0,0 m -13.205,-11.258 c -0.836,-0.177 -1.69,-0.266 -2.548,-0.266 -5.617,0 -10.452,3.807 -11.668,9.115 1.216,5.31 6.051,9.117 11.668,9.117 0.858,0 1.712,-0.089 2.548,-0.266 2.648,-2.227 4.156,-5.424 4.156,-8.85 0,-3.426 -1.508,-6.623 -4.156,-8.85"),
         (589.4198, 66.2591, "m 0,0 c -2.765,-6.337 -10.378,-9.346 -17.005,-6.723 -6.627,2.624 -9.758,9.887 -6.994,16.224 2.765,6.337 10.378,9.347 17.006,6.723 C -0.367,13.6 2.765,6.337 0,0 m 2.154,-0.853 c 3.255,7.463 -0.445,16.047 -8.249,19.137 -7.805,3.09 -16.803,-0.468 -20.058,-7.93 -3.256,-7.462 0.445,-16.047 8.25,-19.137 7.804,-3.09 16.801,0.468 20.057,7.93"),
@@ -140,40 +115,14 @@ enum Logo {
         return path
     }
 
-    /// Menu bar glyph (y-up context, `height` points): a solid circle with a knocked-out ✓, then TAU's two ring shapes.
-    /// The README logo is this glyph too, drawn large in `color`.
-    static func drawMenuBar(_ ctx: CGContext, height h: CGFloat, color: CGColor = .black) {
-        let paths = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)) }
-        let bounds = paths.reduce(tauBadge) { $0.union($1.boundingBoxOfPath) }
-        let k = (h - 1) / bounds.height
-        ctx.saveGState()
-        ctx.translateBy(x: -bounds.minX * k, y: 0.5 - bounds.minY * k); ctx.scaleBy(x: k, y: k)
-        ctx.setFillColor(color)
-        ctx.fillEllipse(in: tauBadge)
-        for path in paths { ctx.addPath(path) }
-        ctx.fillPath()
-        // Knock a check mark out of the solid circle.
-        let b = tauBadge
-        ctx.setBlendMode(.clear); ctx.setStrokeColor(.black)
-        ctx.setLineWidth(b.width * 0.14); ctx.setLineCap(.round); ctx.setLineJoin(.round)
-        ctx.move(to: p(b.minX + b.width * 0.27, b.minY + b.height * 0.48))
-        ctx.addLine(to: p(b.minX + b.width * 0.44, b.minY + b.height * 0.31))
-        ctx.addLine(to: p(b.minX + b.width * 0.74, b.minY + b.height * 0.68))
-        ctx.strokePath()
-        ctx.restoreGState()
-    }
-
-    static func menuBarWidth(height h: CGFloat) -> CGFloat {
-        let bounds = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)).boundingBoxOfPath }.reduce(tauBadge) { $0.union($1) }
-        return ceil(bounds.width * (h - 1) / bounds.height)
-    }
+    private static let ringPaths = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)) }
 
     /// Menu bar template image (follows light/dark menu bar automatically).
     static let menuBarImage: NSImage = {
         let h: CGFloat = 16
-        let img = NSImage(size: NSSize(width: menuBarWidth(height: h), height: h), flipped: false) { _ in
+        let img = NSImage(size: NSSize(width: logoWidth(height: h), height: h), flipped: false) { _ in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            drawMenuBar(ctx, height: h)
+            drawLogo(ctx, height: h)
             return true
         }
         img.isTemplate = true
