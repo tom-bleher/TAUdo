@@ -153,12 +153,12 @@ final class AppModel {
         } else {
             for e in c.added {
                 Notifier.post(String(localized: "New: \(Classifier.cleanTitle(e.summary))"),
-                              name(e) + " · " + String(localized: "Due \(e.due.medium())"), id: "new." + e.uid)
+                              name(e) + " · " + String(localized: "Due \(e.due.medium(time: !e.isAllDay))"), id: "new." + e.uid)
             }
         }
         for m in c.moved {
             Notifier.post(String(localized: "Moved: \(Classifier.cleanTitle(m.event.summary))"),
-                          name(m.event) + " · " + String(localized: "Now due \(m.event.due.medium()) (was \(m.from.medium()))"), id: "moved." + m.event.uid)
+                          name(m.event) + " · " + String(localized: "Now due \(m.event.due.medium(time: !m.event.isAllDay)) (was \(m.from.medium(time: !m.event.isAllDay)))"), id: "moved." + m.event.uid)
         }
     }
 

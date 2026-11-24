@@ -477,14 +477,20 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(Arazim.courseNumber(moodleKey: "0366110001 - חשבון"), "03661100")
         XCTAssertNil(Arazim.courseNumber(moodleKey: "General"))
 
+        // A midterm and a final in the same moed, and an exam with no time.
         let json = #"{"03661100": {"name": "x", "exams": [{"moed": "א", "date": "08/03/2027", "hour": "09:00", "type": "בחינה סופית"},"#
+            + #"{"moed": "א", "date": "23/11/2026", "hour": "08:00", "type": "בחינת ביניים"},"#
             + #"{"moed": "ב", "date": "02/04/2027", "hour": "", "type": ""}]}, "03211100": {"name": "y"}}"#
-        let ex = try Arazim.exams(catalog: Data(json.utf8), moodleKeys: ["0366110001 - חשבון", "0321110001 - אלגברה"])
-        XCTAssertEqual(ex.map(\.uid), ["arazim-03661100-א", "arazim-03661100-ב"])
+        // Two Moodle groups of the same course list its exams once.
+        let ex = try Arazim.exams(catalog: Data(json.utf8), moodleKeys: ["0366110001 - חשבון", "0366110002 - חשבון", "0321110001 - אלגברה"])
+        XCTAssertEqual(ex.map(\.uid), ["arazim-03661100-א-2027-03-08", "arazim-03661100-א-2026-11-23", "arazim-03661100-ב-2027-04-02"])
         XCTAssertEqual(ex[0].due, cal.date(from: DateComponents(year: 2027, month: 3, day: 8, hour: 9)))
         XCTAssertEqual(ex[0].courseKey, "0366110001 - חשבון")
-        XCTAssertTrue(Classifier.isExam(ex[0].summary) && Classifier.isExam(ex[1].summary))
-        XCTAssertTrue(ex[1].isAllDay)
+        XCTAssertTrue(ex.allSatisfy { Classifier.isExam($0.summary) })
+        // No time: all day, and not overdue until the day is over.
+        XCTAssertTrue(ex[2].isAllDay)
+        XCTAssertEqual(ex[2].start, cal.date(from: DateComponents(year: 2027, month: 4, day: 2)))
+        XCTAssertEqual(ex[2].due, cal.date(from: DateComponents(year: 2027, month: 4, day: 2, hour: 23, minute: 59, second: 59)))
 
         var d = AppData(courses: [])
         d.exams = ex

@@ -52,7 +52,7 @@ enum Notifier {
                     content.title = d.title
                     content.subtitle = plan.courseName(d)
                     // "in 1 day" as seen when the reminder fires, not when it was scheduled.
-                    content.body = String(localized: "Due \(d.due.medium()) (\(relative.localizedString(for: d.due, relativeTo: fire)))")
+                    content.body = String(localized: "Due \(d.due.medium(time: !d.event.isAllDay)) (\(relative.localizedString(for: d.due, relativeTo: fire)))")
                     content.sound = .default
                     content.categoryIdentifier = category
                     await add("\(prefix)\(d.id).\(lead)", content, at: fire, now: now)

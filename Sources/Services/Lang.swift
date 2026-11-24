@@ -53,18 +53,18 @@ extension Date {
         formatted(Date.FormatStyle(date: .complete, time: time ? .shortened : .omitted, locale: Lang.locale))
     }
 
-    func medium() -> String {
-        formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Lang.locale))
+    func medium(time: Bool = true) -> String {
+        formatted(Date.FormatStyle(date: .abbreviated, time: time ? .shortened : .omitted, locale: Lang.locale))
     }
 
     /// When a deadline falls, as short as its section allows: the time alone today and tomorrow,
-    /// the weekday within a week, otherwise the date.
-    func dueLabel(_ group: DueGroup) -> String {
+    /// the weekday within a week, otherwise the date. All-day items (`time: false`) show the day only.
+    func dueLabel(_ group: DueGroup, time: Bool = true) -> String {
         let f = Date.FormatStyle(locale: Lang.locale)
         switch group {
-        case .today, .tomorrow: return formatted(f.hour().minute())
-        case .thisWeek: return formatted(f.weekday(.wide).hour().minute())
-        case .overdue, .later: return formatted(f.day().month(.abbreviated).hour().minute())
+        case .today, .tomorrow: return formatted(time ? f.hour().minute() : f.weekday(.wide))
+        case .thisWeek: return formatted(time ? f.weekday(.wide).hour().minute() : f.weekday(.wide))
+        case .overdue, .later: return formatted(time ? f.day().month(.abbreviated).hour().minute() : f.day().month(.abbreviated))
         }
     }
 }

@@ -270,7 +270,7 @@ struct DeadlineRow: View {
                     Text(d.title).lineLimit(1)
                     if d.isExam { Tag(text: Text("Exam")) }
                 }
-                Text(verbatim: Lang.joined(model.courseName(d), d.due.dueLabel(group)))
+                Text(verbatim: Lang.joined(model.courseName(d), d.due.dueLabel(group, time: !d.event.isAllDay)))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -282,7 +282,7 @@ struct DeadlineRow: View {
                 if let urgency { Tag(text: Text(AppModel.remaining(d.due, now: model.now)).monospacedDigit(), color: urgency) }
                 else { Text(AppModel.remaining(d.due, now: model.now)).font(.callout.monospacedDigit()).foregroundStyle(.secondary) }
             }
-            .help(d.due.long())
+            .help(d.due.long(time: !d.event.isAllDay))
         }
         .font(.callout)
         .padding(.vertical, 5).padding(.horizontal, Self.inset)
