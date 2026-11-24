@@ -468,6 +468,30 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertNil(MoodleConnect.googleSubscribeURL("http://example.com/x.ics"))
     }
 
+    func testArazimExams() throws {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = ICS.defaultTimeZone
+        let oct = cal.date(from: DateComponents(year: 2026, month: 10, day: 18))!
+        let mar = cal.date(from: DateComponents(year: 2027, month: 3, day: 14))!
+        XCTAssertEqual(Arazim.catalogURL(semesterStart: oct).lastPathComponent, "courses-2027a.json")
+        XCTAssertEqual(Arazim.catalogURL(semesterStart: mar).lastPathComponent, "courses-2027b.json")
+        XCTAssertEqual(Arazim.courseNumber(moodleKey: "0366110001 - חשבון"), "03661100")
+        XCTAssertNil(Arazim.courseNumber(moodleKey: "General"))
+
+        let json = #"{"03661100": {"name": "x", "exams": [{"moed": "א", "date": "08/03/2027", "hour": "09:00", "type": "בחינה סופית"},"#
+            + #"{"moed": "ב", "date": "02/04/2027", "hour": "", "type": ""}]}, "03211100": {"name": "y"}}"#
+        let ex = try Arazim.exams(catalog: Data(json.utf8), moodleKeys: ["0366110001 - חשבון", "0321110001 - אלגברה"])
+        XCTAssertEqual(ex.map(\.uid), ["arazim-03661100-א", "arazim-03661100-ב"])
+        XCTAssertEqual(ex[0].due, cal.date(from: DateComponents(year: 2027, month: 3, day: 8, hour: 9)))
+        XCTAssertEqual(ex[0].courseKey, "0366110001 - חשבון")
+        XCTAssertTrue(Classifier.isExam(ex[0].summary) && Classifier.isExam(ex[1].summary))
+        XCTAssertTrue(ex[1].isAllDay)
+
+        var d = AppData(courses: [])
+        d.exams = ex
+        d.ignoredCourseKeys = ["0366110001 - חשבון"]
+        XCTAssertTrue(d.deadlines().isEmpty)
+    }
+
     func testAllDayEvents() {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Asia/Jerusalem")!

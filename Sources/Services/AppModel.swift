@@ -110,12 +110,28 @@ final class AppModel {
                     feedError = error.localizedDescription
                 }
             }
+            await refreshExams()
             await scanFiles()
             data.autoLinkCourses(files: files)
             await organizeDownloads()
         } while refreshAgain
         now = .now
         push()
+    }
+
+    /// Exam dates from Arazim, fetched at most daily (the catalog is a few MB).
+    /// On failure the last known dates stay.
+    private func refreshExams() async {
+        guard data.examsFetched.map({ Date().timeIntervalSince($0) > 86400 }) ?? true else { return }
+        let keys = Set(data.courses.compactMap(\.moodleKey)).union(data.moodleCourseKeys)
+        guard !keys.isEmpty else { return }
+        let url = Arazim.catalogURL(semesterStart: data.settings.semesterStart)
+        do {
+            let (body, resp) = try await URLSession.shared.data(from: url)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return }
+            data.exams = try await Task.detached(priority: .utility) { try Arazim.exams(catalog: body, moodleKeys: keys) }.value
+            data.examsFetched = .now
+        } catch {}
     }
 
     /// Indexes course folders off the main thread.
@@ -326,7 +342,7 @@ final class AppModel {
         var events = data.events
             .filter { !($0.courseKey.map(hidden.contains) ?? false) && !data.hiddenUIDs.contains($0.uid) }
             .filter { s.calendarIncludesAllEvents || byUID[$0.uid] != nil }
-        events += deadlines.filter(\.isManual).map(\.event)
+        events += deadlines.filter(\.isExtra).map(\.event)
         return events.map { e in
             let d = byUID[e.uid]
             let course: String? = (d?.courseIndex ?? data.courseIndex(for: e)).map { data.courses[$0].name } ?? e.courseKey.map(data.courseLabel)
@@ -378,7 +394,7 @@ final class AppModel {
 
     /// Moodle courses with deadlines that aren't linked to a tracker course yet.
     var unlinkedMoodleCourses: [String] {
-        Set(deadlines.filter { $0.courseIndex == nil && !$0.isManual }.compactMap(\.event.courseKey)).sorted()
+        Set(deadlines.filter { $0.courseIndex == nil && !$0.isExtra }.compactMap(\.event.courseKey)).sorted()
     }
 
     func addCourse(fromMoodle key: String) {

@@ -402,7 +402,7 @@ struct ExamsSettings: View {
                     model.data.manual.append(ManualDeadline(title: String(localized: "Exam"), due: Calendar.current.startOfDay(for: .now).addingTimeInterval(14 * 86400 + 9 * 3600), courseID: model.data.courses.first?.id))
                 }
             } footer: {
-                Text("For exams and deadlines that aren't on Moodle. They show up in the menu bar, reminders and the calendar like Moodle deadlines.").footnote()
+                Text("Exam dates come from Arazim automatically. Add other exams and deadlines that aren't on Moodle here: they show up in the menu bar, reminders and the calendar like Moodle deadlines.").footnote()
             }
         }
         .settingsForm()

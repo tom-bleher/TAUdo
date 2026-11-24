@@ -35,7 +35,7 @@
 "Files" = "קבצים";
 "Finish by" = "לסיים עד";
 "Folder" = "תיקייה";
-"For exams and deadlines that aren't on Moodle. They show up in the menu bar, reminders and the calendar like Moodle deadlines." = "למבחנים ולמועדים שלא מופיעים ב־Moodle. הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
+"Exam dates come from Arazim automatically. Add other exams and deadlines that aren't on Moodle here: they show up in the menu bar, reminders and the calendar like Moodle deadlines." = "מועדי הבחינות מגיעים אוטומטית מארזים. כאן אפשר להוסיף מבחנים ומועדים אחרים שלא מופיעים ב־Moodle: הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
 "General" = "כללי";
 "HW" = "ש״ב";
 "HW %lld" = "תרגיל %lld";

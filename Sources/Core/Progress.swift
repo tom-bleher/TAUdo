@@ -15,6 +15,8 @@ struct Deadline: Identifiable, Hashable, Sendable {
     var title: String { Classifier.cleanTitle(event.summary) }
     var isExam: Bool { Classifier.isExam(event.summary) }
     var isManual: Bool { event.uid.hasPrefix("manual-") }
+    /// Not from the Moodle feed: added by hand or from Arazim.
+    var isExtra: Bool { isManual || event.uid.hasPrefix("arazim-") }
 }
 
 extension AppData {
@@ -61,7 +63,8 @@ extension AppData {
             guard let hw = courses[ci].tracks.firstIndex(where: { $0.kind == .homework }) else { continue }
             for (i, e) in homeworkLinks(course: ci) { linked[e.uid] = (ci, hw, i) }
         }
-        let moodle = problemSets.filter { !hiddenUIDs.contains($0.uid) }.map { e in
+        let exams = self.exams.filter { !($0.courseKey.map(ignoredCourseKeys.contains) ?? false) }
+        let moodle = (problemSets + exams).filter { !hiddenUIDs.contains($0.uid) }.map { e in
             // Done means submitted (ticked here or reported by Moodle), not "solved": when you study ahead,
             // a cube can be done long before this year's deadline is handed in.
             if let (ci, t, i) = linked[e.uid] {

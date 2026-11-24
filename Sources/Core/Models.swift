@@ -233,7 +233,7 @@ extension AppData {
     }
 }
 
-/// An exam or deadline you add yourself (TAU exam dates usually aren't on Moodle).
+/// An exam or deadline you add yourself.
 struct ManualDeadline: Codable, Identifiable, Hashable, Sendable {
     var id = UUID()
     var title: String
@@ -250,6 +250,9 @@ struct AppData: Codable, Sendable {
     /// Last successfully fetched Moodle feed (kept so the app works offline).
     var events: [MoodleEvent] = []
     var lastSync: Date?
+    /// Exam dates from Arazim, and when they were last fetched.
+    var exams: [MoodleEvent] = []
+    var examsFetched: Date?
     /// Deadlines you submitted (ticked, or reported by Moodle).
     var doneUIDs: Set<String> = []
     /// Moodle event IDs Moodle reported as submitted (only ever upgrades a cube to done).
@@ -276,6 +279,8 @@ struct AppData: Codable, Sendable {
         settings = try c.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
         events = try c.decodeIfPresent([MoodleEvent].self, forKey: .events) ?? []
         lastSync = try c.decodeIfPresent(Date.self, forKey: .lastSync)
+        exams = try c.decodeIfPresent([MoodleEvent].self, forKey: .exams) ?? []
+        examsFetched = try c.decodeIfPresent(Date.self, forKey: .examsFetched)
         doneUIDs = try c.decodeIfPresent(Set<String>.self, forKey: .doneUIDs) ?? []
         submittedIDs = try c.decodeIfPresent(Set<Int>.self, forKey: .submittedIDs) ?? []
         hiddenUIDs = try c.decodeIfPresent(Set<String>.self, forKey: .hiddenUIDs) ?? []
