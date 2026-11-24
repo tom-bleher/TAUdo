@@ -70,13 +70,12 @@ enum DownloadMover {
         }
     }
 
-    /// Moves `src` to `dest`. If an identical-size file is already there it's a re-download: keep yours, drop the new one.
-    /// If a different file is there, the new one becomes "name 2.ext".
+    /// Moves `src` to `dest`. If an identical file is already there it's a re-download: keep yours, drop the new one.
+    /// If a different file is there (an updated version, even of the same size), the new one becomes "name 2.ext".
     static func place(_ src: URL, at dest: URL) throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: dest.path) else { try fm.moveItem(at: src, to: dest); return }
-        let size = { (u: URL) in (try? fm.attributesOfItem(atPath: u.path)[.size] as? Int) ?? -1 }
-        if size(dest) == size(src) { try fm.removeItem(at: src); return }
+        if fm.contentsEqual(atPath: src.path, andPath: dest.path) { try fm.removeItem(at: src); return }
         let base = dest.deletingPathExtension().lastPathComponent, ext = dest.pathExtension
         for n in 2... {
             let candidate = dest.deletingLastPathComponent().appendingPathComponent("\(base) \(n)" + (ext.isEmpty ? "" : ".\(ext)"))

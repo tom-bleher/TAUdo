@@ -414,11 +414,13 @@ final class DownloadSafetyTests: XCTestCase {
         try fm.createDirectory(at: downloads, withIntermediateDirectories: true)
         try Data("my edited work".utf8).write(to: section.appendingPathComponent("main.tex"))
         try Data("same".utf8).write(to: section.appendingPathComponent("same.txt"))
+        try Data("v1".utf8).write(to: section.appendingPathComponent("hw.txt"))
         // The lecturer's zip again: original main.tex (different content) and an unchanged file.
         let stage = root.appendingPathComponent("stage")
         try fm.createDirectory(at: stage, withIntermediateDirectories: true)
         try Data("template".utf8).write(to: stage.appendingPathComponent("main.tex"))
         try Data("same".utf8).write(to: stage.appendingPathComponent("same.txt"))
+        try Data("v2".utf8).write(to: stage.appendingPathComponent("hw.txt"))
         let zip = Process(); zip.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         zip.arguments = ["-c", "-k", stage.path, downloads.appendingPathComponent("TAUdo__7__1__Starter.zip").path]
         try zip.run(); zip.waitUntilExit()
@@ -432,6 +434,7 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: section.appendingPathComponent("main.tex"), encoding: .utf8), "my edited work")
         XCTAssertEqual(try String(contentsOf: section.appendingPathComponent("main 2.tex"), encoding: .utf8), "template")
         XCTAssertFalse(fm.fileExists(atPath: section.appendingPathComponent("same 2.txt").path), "identical re-download isn't duplicated")
+        XCTAssertEqual(try String(contentsOf: section.appendingPathComponent("hw 2.txt"), encoding: .utf8), "v2", "same size, new content is kept")
         XCTAssertTrue(fm.fileExists(atPath: downloads.appendingPathComponent("TAUdo__7__1__slides.pdf").path), "in-progress download left alone")
     }
 
