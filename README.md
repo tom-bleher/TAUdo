@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
-    <img src="assets/logo.png" width="360" alt="TAUdo logo">
+    <img src="assets/logo.png" width="280" alt="TAUdo logo">
   </picture>
 </p>
 
@@ -99,7 +99,6 @@ Tests             XCTest
 ## Logo
 
 - **App icon:** TAU's solid circle with its torch emblem, with the bowl redrawn as a check mark.
-- **Logo above:** that circle, followed by TAU's heavy ring and interlocking rings.
-- **Menu bar:** the three circles read as a checklist (done, in progress, to do).
+- **Logo above and menu bar:** a check mark in a solid circle, followed by TAU's heavy ring and interlocking rings. The three circles read as a checklist (done, in progress, to do).
 
 TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.

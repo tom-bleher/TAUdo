@@ -140,28 +140,15 @@ enum Logo {
         return path
     }
 
-    /// The lockup: badge, heavy ring, interlocking rings — scaled to fit `rect` (y-up context).
-    static func drawLockup(_ ctx: CGContext, in rect: CGRect, rings: CGColor = navy) {
-        let paths = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)) }
-        let bounds = paths.reduce(tauBadge) { $0.union($1.boundingBoxOfPath) }
-        let k = min(rect.width / bounds.width, rect.height / bounds.height)
-        ctx.saveGState()
-        ctx.translateBy(x: rect.midX - bounds.midX * k, y: rect.midY - bounds.midY * k); ctx.scaleBy(x: k, y: k)
-        drawBadge(ctx, in: tauBadge)
-        ctx.setFillColor(rings)
-        for path in paths { ctx.addPath(path) }
-        ctx.fillPath()
-        ctx.restoreGState()
-    }
-
     /// Menu bar glyph (y-up context, `height` points): a solid circle with a knocked-out ✓, then TAU's two ring shapes.
-    static func drawMenuBar(_ ctx: CGContext, height h: CGFloat) {
+    /// The README logo is this glyph too, drawn large in `color`.
+    static func drawMenuBar(_ ctx: CGContext, height h: CGFloat, color: CGColor = .black) {
         let paths = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)) }
         let bounds = paths.reduce(tauBadge) { $0.union($1.boundingBoxOfPath) }
         let k = (h - 1) / bounds.height
         ctx.saveGState()
         ctx.translateBy(x: -bounds.minX * k, y: 0.5 - bounds.minY * k); ctx.scaleBy(x: k, y: k)
-        ctx.setFillColor(.black)
+        ctx.setFillColor(color)
         ctx.fillEllipse(in: tauBadge)
         for path in paths { ctx.addPath(path) }
         ctx.fillPath()

@@ -18,15 +18,16 @@ for pt in [16, 32, 128, 256, 512] {
         png(px, px, to: "icon_\(pt)x\(pt)\(s == 2 ? "@2x" : "").png") { Logo.drawIcon($0, size: CGFloat(px)) }
     }
 }
-// README lockup: navy rings for light backgrounds, light rings for dark ones.
-let lockup = CGRect(x: 0, y: 0, width: 1200, height: 380)
-png(1200, 380, to: "logo.png") { Logo.drawLockup($0, in: lockup.insetBy(dx: 20, dy: 20)) }
-png(1200, 380, to: "logo-dark.png") {
-    Logo.drawLockup($0, in: lockup.insetBy(dx: 20, dy: 20), rings: CGColor(srgbRed: 0.78, green: 0.86, blue: 0.97, alpha: 1))
+// README logo: the menu bar glyph, as it looks in a light and a dark menu bar.
+let scale: CGFloat = 4
+func glyph(_ h: CGFloat, to name: String, color: CGColor) {
+    // Half a point of margin each side so antialiased ring edges aren't clipped.
+    png(Int((Logo.menuBarWidth(height: h) + 1) * scale), Int(h * scale), to: name) { ctx in
+        ctx.scaleBy(x: scale, y: scale)
+        ctx.translateBy(x: 0.5, y: 0)
+        Logo.drawMenuBar(ctx, height: h, color: color)
+    }
 }
-// Menu bar glyph at 4×.
-let scale: CGFloat = 4, h: CGFloat = 16
-png(Int(Logo.menuBarWidth(height: h) * scale), Int(h * scale), to: "menubar_preview.png") { ctx in
-    ctx.scaleBy(x: scale, y: scale)
-    Logo.drawMenuBar(ctx, height: h)
-}
+glyph(60, to: "logo.png", color: CGColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1))
+glyph(60, to: "logo-dark.png", color: .white)
+glyph(16, to: "menubar_preview.png", color: .black)
