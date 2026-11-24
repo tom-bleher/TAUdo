@@ -35,8 +35,10 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 
 ## Install
 
+Requires macOS 14 or later on a Mac with Apple silicon.
+
 1. Download `TAUdo-<version>.dmg` from [Releases](../../releases), open it and drag TAUdo into the empty circle (Applications).
-2. The first time, right-click TAUdo › Open. The build isn't notarized by Apple yet, so macOS asks once.
+2. Open TAUdo. It isn't notarized by Apple, so macOS blocks it the first time: go to System Settings › Privacy & Security, click *Open Anyway* next to TAUdo, and confirm.
    After that TAUdo updates itself: Settings › General › Updates.
 3. The welcome window walks you through the rest:
    - **Connect Moodle:** TAUdo opens Moodle's *Export calendar* page in your browser. Log in, click the button to get the calendar URL, and copy it. TAUdo picks it up from the clipboard.
@@ -49,7 +51,11 @@ To uninstall, quit TAUdo, delete the app and delete `~/Library/Application Suppo
 
 ## Privacy
 
-- TAUdo runs entirely on your Mac. There is no TAUdo server and no account.
+- TAUdo runs on your Mac. There is no TAUdo server and no account. It connects to:
+  - Moodle, for your calendar export link.
+  - [arazim-project.com](https://arazim-project.com), to download the semester's public course list for exam dates. Nothing about you is sent.
+  - GitHub, to check for updates.
+- With calendar sync on, your deadlines go into the calendar you pick, and so to iCloud or Google if that calendar lives there. *Subscribe in Google Calendar…* gives Google your Moodle calendar link.
 - It never sees your TAU password or your browser session.
   - Deadlines come from Moodle's calendar export link.
   - Submission status and course downloads come from the bookmark, which runs in your own logged-in browser tab.
@@ -73,7 +79,7 @@ Some details:
 
 ## Development
 
-Requires Xcode and XcodeGen (`brew install xcodegen`).
+Requires Xcode and XcodeGen (`brew install xcodegen`). Releasing also needs uv and the GitHub CLI (`brew install uv gh`).
 
 ```sh
 scripts/build.sh test            # unit tests, then ./TAUdo.app (Release)
@@ -103,3 +109,7 @@ Tests             XCTest
 The logo is a check mark in a solid circle, followed by TAU's heavy ring and interlocking rings. The three circles read as a checklist (done, in progress, to do). The app icon is the check circle, and the installer has you drag it into its place in the logo.
 
 TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.
+
+## License
+
+The code is under the [MIT License](LICENSE). The ring shapes in the logo come from Tel Aviv University's logo and are not covered by it.
