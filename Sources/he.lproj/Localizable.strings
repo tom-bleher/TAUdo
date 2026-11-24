@@ -183,10 +183,10 @@
 "Calendar" = "יומן";
 "New calendar “%@”" = "יומן חדש ״%@״";
 "Google Calendar" = "יומן Google";
-"Subscribe in Google Calendar…" = "הרשמה ביומן Google…";
-"Best: add your Google account in System Settings › Internet Accounts, then pick one of its calendars above. TAUdo then writes to Google directly, with done marks and alerts. Or subscribe Google Calendar to your Moodle link: it shows Moodle's own titles and Google refreshes it only every few hours." = "הכי טוב: הוסיפו את חשבון Google בהגדרות המערכת › חשבונות אינטרנט ובחרו למעלה אחד מהיומנים שלו. כך TAUdo כותב ישירות ל־Google, עם סימוני ביצוע והתראות. אפשרות אחרת: להירשם ביומן Google לקישור של Moodle. הוא יציג את הכותרות של Moodle, ו־Google מרענן אותו רק כל כמה שעות.";
 "Updates" = "עדכונים";
 "Check for updates automatically" = "בדיקת עדכונים אוטומטית";
 "Install updates automatically" = "התקנת עדכונים אוטומטית";
 "Check for Updates…" = "בדיקת עדכונים…";
 "Version %@. Updates install when TAUdo quits." = "גרסה %@ · עדכונים מותקנים כש־TAUdo נסגר.";
+"Add Google Account…" = "הוספת חשבון Google…";
+"Add your Google account in System Settings › Internet Accounts with Calendars on, then pick one of its calendars above. TAUdo writes to it like any other calendar: all-day deadlines, done marks and alerts. To keep them apart, first create a calendar named Moodle in Google Calendar." = "הוסיפו את חשבון Google בהגדרות המערכת › חשבונות אינטרנט עם לוחות שנה מופעלים, ובחרו למעלה אחד מהיומנים שלו. TAUdo כותב אליו כמו לכל יומן אחר: מועדי הגשה כאירועים של יום שלם, סימוני ביצוע והתראות. כדי לשמור עליהם בנפרד, צרו קודם ב־Google Calendar יומן בשם Moodle.";

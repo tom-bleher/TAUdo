@@ -26,7 +26,7 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
   - Moodle, for your calendar export link.
   - [arazim-project.com](https://arazim-project.com), to download the semester's public course list for exam dates. Nothing about you is sent.
   - GitHub, to check for updates.
-- With calendar sync on, your deadlines go into the calendar you pick, and so to iCloud or Google if that calendar lives there. *Subscribe in Google Calendar…* gives Google your Moodle calendar link.
+- With calendar sync on, your deadlines go into the calendar you pick, and so to iCloud or Google if that calendar lives there.
 - It never sees your TAU password or your browser session.
   - Deadlines come from Moodle's calendar export link.
   - Submission status and course downloads come from the bookmark, which runs in your own logged-in browser tab.

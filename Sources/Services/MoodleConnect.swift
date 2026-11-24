@@ -220,15 +220,6 @@ enum MoodleConnect {
     }
 
     /// Writes a small page with the draggable bookmark and opens it in the default browser.
-    /// Google Calendar's "add this calendar?" prompt for an https calendar link (undocumented but long-standing:
-    /// `calendar/render?cid=` with the link as webcal://, fully percent-encoded so its query survives).
-    static func googleSubscribeURL(_ link: String) -> URL? {
-        guard link.hasPrefix("https://"), link.count > 8 else { return nil }
-        let webcal = "webcal://" + link.dropFirst("https://".count)
-        guard let cid = webcal.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) else { return nil }
-        return URL(string: "https://calendar.google.com/calendar/render?cid=" + cid)
-    }
-
     static func openBookmarkletPage(key: String, base: String) {
         let style = """
         <style>:root{color-scheme:light dark}

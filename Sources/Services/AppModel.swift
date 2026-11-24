@@ -1,4 +1,5 @@
 import AppKit
+import EventKit
 import Foundation
 import Observation
 
@@ -72,6 +73,10 @@ final class AppModel {
         }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.now = .now; await self?.refresh() }
+        }
+        // A calendar account added in System Settings (e.g. Google) shows up in the calendar picker right away.
+        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.refreshCalendarChoices() }
         }
         // New users are asked in the welcome window; existing ones at launch (asks only once).
         if data.settings.notifications && data.onboarded { Task { _ = await Notifier.requestAuthorization() } }
@@ -328,16 +333,6 @@ final class AppModel {
         }
         data.settings.calendarID = id
         push()
-    }
-
-    /// Opens Google Calendar's "add this calendar" prompt for the Moodle export link, and copies the link
-    /// for Google's Settings › Add calendar › From URL in case the prompt doesn't fill it in.
-    func subscribeInGoogleCalendar() {
-        let link = data.settings.exportURL
-        guard MoodleConnect.googleSubscribeURL(link) != nil else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(link, forType: .string)
-        if let url = MoodleConnect.googleSubscribeURL(link) { NSWorkspace.shared.open(url) }
     }
 
     func plannedEvents(_ deadlines: [Deadline]) -> [CalendarSync.Planned] {

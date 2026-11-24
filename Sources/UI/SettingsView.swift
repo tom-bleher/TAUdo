@@ -208,11 +208,12 @@ struct NotificationSettings: View {
                 HStack {
                     Text("Google Calendar")
                     Spacer(minLength: 8)
-                    Button("Subscribe in Google Calendar…") { model.subscribeInGoogleCalendar() }
-                        .disabled(model.data.settings.exportURL.isEmpty)
+                    Button("Add Google Account…") {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension")!)
+                    }
                 }
             } footer: {
-                Text("Best: add your Google account in System Settings › Internet Accounts, then pick one of its calendars above. TAUdo then writes to Google directly, with done marks and alerts. Or subscribe Google Calendar to your Moodle link: it shows Moodle's own titles and Google refreshes it only every few hours.").footnote()
+                Text("Add your Google account in System Settings › Internet Accounts with Calendars on, then pick one of its calendars above. TAUdo writes to it like any other calendar: all-day deadlines, done marks and alerts. To keep them apart, first create a calendar named Moodle in Google Calendar.").footnote()
             }
         }
         .settingsForm()

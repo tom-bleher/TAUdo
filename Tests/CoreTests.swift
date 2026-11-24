@@ -463,15 +463,6 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(group(7 * 24), .later)
     }
 
-    func testGoogleSubscribeURL() throws {
-        let link = "https://moodle.tau.ac.il/calendar/export_execute.php?userid=5&authtoken=ab&preset_what=all"
-        let url = try XCTUnwrap(MoodleConnect.googleSubscribeURL(link))
-        let cid = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "cid" }?.value)
-        XCTAssertEqual(url.host, "calendar.google.com")
-        XCTAssertEqual(cid, "webcal://moodle.tau.ac.il/calendar/export_execute.php?userid=5&authtoken=ab&preset_what=all")
-        XCTAssertNil(MoodleConnect.googleSubscribeURL("http://example.com/x.ics"))
-    }
-
     func testArazimExams() throws {
         var cal = Calendar(identifier: .gregorian); cal.timeZone = ICS.defaultTimeZone
         let oct = cal.date(from: DateComponents(year: 2026, month: 10, day: 18))!
