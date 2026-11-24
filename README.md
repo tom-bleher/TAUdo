@@ -11,6 +11,8 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 
 **עוזר לסטודנטים באוניברסיטת תל אביב, בשורת התפריטים של ה־Mac: מועדי הגשה מ־Moodle, מעקב התקדמות בקורסים ותזכורות.**
 
+**[Download the latest version](../../releases/latest)** · macOS 14 or later, Apple silicon · free and open source
+
 <p align="center">
   <img src="assets/screenshots/panel-due-he.png" width="380" alt="Due tab">
   <img src="assets/screenshots/panel-courses-he.png" width="380" alt="Courses tab">
@@ -37,9 +39,16 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 
 Requires macOS 14 or later on a Mac with Apple silicon.
 
-1. Download `TAUdo-<version>.dmg` from [Releases](../../releases), open it and drag TAUdo into the empty circle (Applications).
-2. Open TAUdo. It isn't notarized by Apple, so macOS blocks it the first time: go to System Settings › Privacy & Security, click *Open Anyway* next to TAUdo, and confirm.
-   After that TAUdo updates itself: Settings › General › Updates.
+1. Download `TAUdo-<version>.dmg` from the [latest release](../../releases/latest), open it, and drag TAUdo into the empty circle. The circle is your Applications folder.
+
+   <img src="assets/screenshots/install.png" width="480" alt="The install window: drag the TAUdo icon into the empty circle">
+
+2. Open TAUdo from Applications. It isn't notarized by Apple, so the first time macOS says it can't be opened:
+   1. Click **Done**.
+   2. Open System Settings › Privacy & Security and scroll down to Security.
+   3. Click **Open Anyway** next to “TAUdo was blocked”, then confirm with your password or Touch ID.
+
+   You only do this once. After that TAUdo updates itself (Settings › General › Updates).
 3. The welcome window walks you through the rest:
    - **Connect Moodle:** TAUdo opens Moodle's *Export calendar* page in your browser. Log in, click the button to get the calendar URL, and copy it. TAUdo picks it up from the clipboard.
    - **Choose your courses:** your Moodle courses are listed, and TAUdo creates the ones you pick, already linked to Moodle.
@@ -47,7 +56,7 @@ Requires macOS 14 or later on a Mac with Apple silicon.
 
 Optional: from the ⋯ menu, choose *Install sync bookmark…* and drag the button to your bookmarks bar. Clicking it on Moodle tells TAUdo which assignments you've already submitted. On a course page, it also offers to download the course's files.
 
-To uninstall, quit TAUdo, delete the app and delete `~/Library/Application Support/TAUdo`.
+To uninstall: turn off *Open at login* in Settings › General, quit TAUdo (⋯ › Quit TAUdo), then delete the app and `~/Library/Application Support/TAUdo`. If you used calendar sync, also delete its “Moodle” calendar in Calendar.
 
 ## Privacy
 
