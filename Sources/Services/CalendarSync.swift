@@ -95,13 +95,26 @@ final class CalendarSync {
     /// Deletes the events TAUdo put in a calendar (and nothing else), e.g. after you pick another calendar.
     func removeOurEvents(fromCalendar id: String, now: Date = .now) throws {
         guard let cal = store.calendar(withIdentifier: id) else { return }
-        let year: TimeInterval = 365 * 86400
-        // Event queries span at most four years.
-        for e in store.events(matching: store.predicateForEvents(withStart: now - 2 * year, end: now + 2 * year, calendars: [cal]))
-        where Self.uid(e.notes) != nil {
-            try store.remove(e, span: .thisEvent, commit: false)
+        for e in ourEvents(in: cal, now: now) { try store.remove(e, span: .thisEvent, commit: false) }
+        try store.commit()
+    }
+
+    /// Drops the alerts from TAUdo's events in a calendar and keeps the events (after calendar sync is turned off).
+    /// Never creates the calendar or an event.
+    func removeAlarms(fromCalendar id: String, now: Date = .now) throws {
+        guard let cal = store.calendar(withIdentifier: id) else { return }
+        for e in ourEvents(in: cal, now: now) where !(e.alarms ?? []).isEmpty {
+            e.alarms = nil
+            try store.save(e, span: .thisEvent, commit: false)
         }
         try store.commit()
+    }
+
+    private func ourEvents(in cal: EKCalendar, now: Date) -> [EKEvent] {
+        let year: TimeInterval = 365 * 86400
+        // Event queries span at most four years.
+        return store.events(matching: store.predicateForEvents(withStart: now - 2 * year, end: now + 2 * year, calendars: [cal]))
+            .filter { Self.uid($0.notes) != nil }
     }
 
     static func uid(_ notes: String?) -> String? {

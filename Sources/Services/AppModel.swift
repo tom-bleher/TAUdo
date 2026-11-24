@@ -273,38 +273,44 @@ final class AppModel {
             try? await Task.sleep(for: .milliseconds(800))
             guard let self, !Task.isCancelled, persist else { return }
             let s = data.settings
-            let deadlines = data.deadlines()
+            // With calendar sync working, the calendar's alerts remind you (and reach your iPhone via iCloud).
+            // If it failed, TAUdo's own reminders do.
+            var calendarReminds = false
             if s.calendarSync {
                 calendarAlarmsCleared = false
-                await syncCalendar(deadlines)
-            } else if s.calendarID != nil, calendar.hasAccess, !calendarAlarmsCleared {
+                calendarReminds = await syncCalendar()
+            } else if let id = s.calendarID, calendar.hasAccess, !calendarAlarmsCleared {
                 // Sync was turned off: leave the events, but drop their alerts so you aren't reminded twice.
                 calendarAlarmsCleared = true
-                await syncCalendar(deadlines, alarms: false)
+                do { try calendar.removeAlarms(fromCalendar: id) }
+                catch { calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)") }
             }
-            // With calendar sync working, the calendar's alerts remind you (and reach your iPhone via iCloud).
-            let calendarReminds = s.calendarSync && calendar.hasAccess
-            await Notifier.reschedule(.init(deadlines: deadlines, courseName: { [weak self] in self?.courseName($0) ?? "" },
+            // Read after the awaits above, so course indices match the courses as they are now.
+            let deadlines = data.deadlines()
+            let names = Dictionary(deadlines.map { ($0.id, courseName($0)) }, uniquingKeysWith: { a, _ in a })
+            await Notifier.reschedule(.init(deadlines: deadlines, courseName: { names[$0.id] ?? "" },
                                             leadMinutes: s.reminderMinutes, reminders: s.notifications && !calendarReminds,
                                             digestHour: s.notifications ? s.digestHour : nil))
         }
     }
 
-    private func syncCalendar(_ deadlines: [Deadline], alarms: Bool = true) async {
+    /// Mirrors the deadlines into the calendar. Returns whether it worked (so its alerts will fire).
+    private func syncCalendar() async -> Bool {
         do {
             if !calendar.hasAccess, !(try await calendar.requestAccess()) {
                 calendarStatus = String(localized: "No calendar access. Allow TAUdo in System Settings › Privacy & Security › Calendars.")
-                return
+                return false
             }
             let cal = try calendar.calendar(id: data.settings.calendarID, name: data.settings.calendarName)
             refreshCalendarChoices()
             if data.settings.calendarID != cal.calendarIdentifier { data.settings.calendarID = cal.calendarIdentifier }
-            var planned = plannedEvents(deadlines)
-            if !alarms { for i in planned.indices { planned[i].alarms = [] } }
-            let r = try calendar.sync(planned, into: cal, keepBefore: data.settings.semesterStart)
+            // Read after the access prompt, so course indices match the courses as they are now.
+            let r = try calendar.sync(plannedEvents(data.deadlines()), into: cal, keepBefore: data.settings.semesterStart)
             calendarStatus = String(localized: "Calendar “\(cal.title)” is up to date") + (r.created + r.updated + r.deleted > 0 ? " (+\(r.created) ~\(r.updated) −\(r.deleted))" : "")
+            return true
         } catch {
             calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -389,7 +395,7 @@ final class AppModel {
     var overdueCount: Int { data.settings.showOverdue ? overdue.count : 0 }
 
     func courseName(_ d: Deadline) -> String {
-        d.courseIndex.map { data.courses[$0].name } ?? data.courseLabel(d.event.courseKey)
+        d.courseIndex.flatMap { data.courses.indices.contains($0) ? data.courses[$0].name : nil } ?? data.courseLabel(d.event.courseKey)
     }
 
     /// Moodle courses with deadlines that aren't linked to a tracker course yet.

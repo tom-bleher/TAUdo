@@ -320,6 +320,7 @@ struct CoursesSettings: View {
             Button("Delete course", role: .destructive) {
                 model.data.courses.removeAll { $0.id == deleting?.id }
                 selection = nil
+                model.push()
             }
         } message: { Text("Its progress cubes are deleted too. Moodle deadlines stay.") }
     }
