@@ -12,7 +12,10 @@ struct SettingsView: View {
     }
 }
 
-private let reminderChoices: [(Int, String)] = [(7 * 1440, "1 week"), (2 * 1440, "2 days"), (1440, "1 day"), (180, "3 hours"), (60, "1 hour")]
+private let reminderChoices: [(Int, String)] = [
+    (7 * 1440, String(localized: "1 week before")), (2 * 1440, String(localized: "2 days before")), (1440, String(localized: "1 day before")),
+    (180, String(localized: "3 hours before")), (60, String(localized: "1 hour before")),
+]
 
 struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
@@ -32,17 +35,23 @@ struct GeneralSettings: View {
                     Button("Refresh now") { Task { await model.refresh() } }.disabled(model.syncing)
                 }
                 if let s = model.connectStatus { Text(s).font(.caption).foregroundStyle(.blue) }
-                if let t = model.data.lastSync { Text("Deadlines synced \(t.formatted(.relative(presentation: .named))). They refresh on their own.").font(.caption).foregroundStyle(.secondary) }
+                if let t = model.data.lastSync { Text("Deadlines synced \(t.relative()). They refresh on their own.").font(.caption).foregroundStyle(.secondary) }
                 if let e = model.feedError { Text(e).foregroundStyle(.orange) }
-                Text("Submitted assignments: click the TAUdo sync bookmark on Moodle " + (model.data.lastStatusCheck.map { "(last \($0.formatted(.relative(presentation: .named))))." } ?? "(not used yet)."))
+                Group {
+                    if let t = model.data.lastStatusCheck { Text("Submitted assignments: click the TAUdo sync bookmark on Moodle (last used \(t.relative())).") }
+                    else { Text("Submitted assignments: click the TAUdo sync bookmark on Moodle.") }
+                }
                     .font(.caption).foregroundStyle(.secondary)
                 Picker("Refresh every", selection: $m.data.settings.refreshMinutes) {
-                    ForEach([15, 30, 60, 180], id: \.self) { Text($0 < 60 ? "\($0) min" : "\($0 / 60) h").tag($0) }
+                    ForEach([15, 30, 60, 180], id: \.self) { m in Group { if m < 60 { Text("\(m) min") } else { Text("\(m / 60) h") } }.tag(m) }
                 }
             }
             Section {
-                TextField("Coursework folder", text: $m.data.settings.courseworkFolder)
-                    .onSubmit { Task { await model.scanFiles() } }
+                HStack {
+                    TextField("Coursework folder", text: $m.data.settings.courseworkFolder, prompt: Text("Not set"))
+                        .onSubmit { Task { await model.scanFiles() } }
+                    Button("Choose…") { if let p = FolderPicker.choose() { model.data.settings.courseworkFolder = p; Task { await model.scanFiles() } } }
+                }
             } header: { Text("Files") } footer: {
                 Text("One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click).")
                     .font(.caption).foregroundStyle(.secondary)
@@ -61,7 +70,7 @@ struct GeneralSettings: View {
             }
             Section {
                 ForEach(reminderChoices, id: \.0) { minutes, label in
-                    Toggle(label + " before", isOn: Binding(
+                    Toggle(label, isOn: Binding(
                         get: { model.data.settings.reminderMinutes.contains(minutes) },
                         set: { on in
                             var r = Set(model.data.settings.reminderMinutes)
@@ -69,6 +78,12 @@ struct GeneralSettings: View {
                             model.data.settings.reminderMinutes = r.sorted(by: >)
                             model.push()
                         }))
+                }
+                Toggle("Alert when Moodle posts or moves a deadline", isOn: $m.data.settings.alertChanges)
+                Picker("Morning summary", selection: Binding(get: { model.data.settings.digestHour ?? -1 },
+                                                             set: { model.data.settings.digestHour = $0 < 0 ? nil : $0; model.push() })) {
+                    Text("Off").tag(-1)
+                    ForEach([6, 7, 8, 9, 10], id: \.self) { h in Text(verbatim: String(format: "%02d:00", h)).tag(h) }
                 }
                 Toggle("Mac notifications", isOn: $m.data.settings.notifications)
                     .onChange(of: model.data.settings.notifications) {
@@ -78,8 +93,16 @@ struct GeneralSettings: View {
                 Text("With calendar mirroring on, reminders are calendar alerts (they reach your iPhone too) instead of Mac notifications. Done deadlines never remind you.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Language") {
+                Picker("Language", selection: Binding(get: { Lang.code }, set: { Lang.set($0) })) {
+                    Text(verbatim: "עברית").tag("he")
+                    Text(verbatim: "English").tag("en")
+                }
+                Text("TAUdo restarts to switch language.").font(.caption).foregroundStyle(.secondary)
+            }
             Section("Menu bar") {
                 Toggle("Show the next deadline and days left", isOn: $m.data.settings.menuBarShowsNext)
+                Toggle("Show overdue deadlines", isOn: $m.data.settings.showOverdue)
                 Toggle("Open at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) {
                         do { try launchAtLogin ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister(); loginError = nil }
@@ -125,7 +148,7 @@ struct ImportSheet: View {
                         model.data.courses = imported
                         model.push()
                         dismiss()
-                    } catch { self.error = "Couldn't read that: \(error.localizedDescription)" }
+                    } catch { self.error = String(localized: "Couldn't read that: \(error.localizedDescription)") }
                 }
                 .keyboardShortcut(.defaultAction).disabled(text.isEmpty)
             }
@@ -150,8 +173,11 @@ struct CoursesSettings: View {
             ForEach($m.data.courses) { $course in
                 Section {
                     TextField("Name", text: $course.name)
-                    TextField("Folder", text: Binding(get: { course.folder ?? "" }, set: { course.folder = $0.isEmpty ? nil : $0 }),
-                              prompt: Text((model.data.settings.courseworkFolder as NSString).appendingPathComponent(course.name)))
+                    HStack {
+                        TextField("Folder", text: Binding(get: { course.folder ?? "" }, set: { course.folder = $0.isEmpty ? nil : $0 }),
+                                  prompt: Text(model.data.settings.courseworkFolder.isEmpty ? "" : (model.data.settings.courseworkFolder as NSString).appendingPathComponent(course.name)))
+                        Button("Choose…") { if let p = FolderPicker.choose() { course.folder = p; Task { await model.scanFiles() } } }
+                    }
                     Picker("Moodle course", selection: $course.moodleKey) {
                         Text("None").tag(String?.none)
                         ForEach(moodleCourses, id: \.key) { Text("\($0.key) — \($0.sample)").tag(Optional($0.key)) }
@@ -168,7 +194,7 @@ struct CoursesSettings: View {
                     ForEach($course.tracks) { $t in
                         HStack {
                             TextField("Row", text: $t.name).labelsHidden().frame(width: 100)
-                            Picker("", selection: $t.kind) { ForEach(TrackKind.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                            Picker("", selection: $t.kind) { ForEach(TrackKind.allCases, id: \.self) { Text($0.label).tag($0) } }
                                 .labelsHidden().frame(width: 110)
                             Stepper("\(t.count) items", value: $t.count, in: 0...60)
                             Stepper("\(t.perWeek)/wk", value: $t.perWeek, in: 0...7).help("Class sessions per week, to estimate where the class is")
@@ -176,14 +202,25 @@ struct CoursesSettings: View {
                         }
                     }
                     HStack {
-                        Button("Add row") { course.tracks.append(Track(name: "Row", kind: .other, count: 13, perWeek: 1)) }
+                        Button("Add row") { course.tracks.append(Track(name: String(localized: "Row"), kind: .other, count: 13, perWeek: 1)) }
                         Spacer()
                         Button("Move up") { move(course.id, -1) }.disabled(model.data.courses.first?.id == course.id)
                         Button("Delete course", role: .destructive) { model.data.courses.removeAll { $0.id == course.id } }
                     }
                 } header: { Text(course.name) }
             }
-            Button("Add course") { model.data.courses.append(.standard("New course")) }
+            Button("Add course") { model.data.courses.append(.standard(String(localized: "New course"))) }
+            if !model.data.ignoredCourseKeys.isEmpty {
+                Section("Hidden Moodle courses") {
+                    ForEach(model.data.ignoredCourseKeys.sorted(), id: \.self) { key in
+                        HStack {
+                            Text(model.data.courseLabel(key))
+                            Spacer()
+                            Button("Show again") { model.data.ignoredCourseKeys.remove(key); model.push() }
+                        }
+                    }
+                }
+            }
             Text("⌥-click a cube in the menu bar panel to say where the class is now. The class keeps advancing from there.")
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -216,7 +253,7 @@ struct ExamsSettings: View {
                     }
                 }
                 Button("Add exam or deadline") {
-                    model.data.manual.append(ManualDeadline(title: "Exam", due: Calendar.current.startOfDay(for: .now).addingTimeInterval(14 * 86400 + 9 * 3600), courseID: model.data.courses.first?.id))
+                    model.data.manual.append(ManualDeadline(title: String(localized: "Exam"), due: Calendar.current.startOfDay(for: .now).addingTimeInterval(14 * 86400 + 9 * 3600), courseID: model.data.courses.first?.id))
                 }
             } footer: {
                 Text("For exams and deadlines that aren't on Moodle. They show up in the menu bar, reminders and the calendar like Moodle deadlines.")
