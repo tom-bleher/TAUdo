@@ -9,54 +9,16 @@
 
 A macOS menu bar companion for Tel Aviv University students. It shows your Moodle deadlines and your progress in each course, and reminds you before things are due. Hebrew by default, with an English option.
 
-**עוזר לסטודנטים באוניברסיטת תל אביב, בשורת התפריטים של ה־Mac: מועדי הגשה מ־Moodle, מעקב התקדמות בקורסים ותזכורות.**
-
-**[Download the latest version](../../releases/latest)** · macOS 14 or later, Apple silicon · free and open source
-
 <p align="center">
-  <img src="assets/screenshots/panel-due-he.png" width="380" alt="Due tab">
-  <img src="assets/screenshots/panel-courses-he.png" width="380" alt="Courses tab">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/panel-due-he-dark.png">
+    <img src="assets/screenshots/panel-due-he.png" width="380" alt="Due tab: upcoming deadlines and exams, grouped by when they're due">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/panel-courses-he-dark.png">
+    <img src="assets/screenshots/panel-courses-he.png" width="380" alt="Courses tab: lectures, recitations and homework per course, and where the class is">
+  </picture>
 </p>
-
-## Features
-
-- **The next deadline in the menu bar**, with the time left (e.g. `חשבון תרגיל 4 · 22 שע׳`). A deadline disappears once you've submitted it.
-- **Due tab:** every upcoming Moodle deadline and exam, grouped into today, tomorrow, the next 7 days and later. Tick one when you've handed it in. Overdue items are hidden unless you ask for them.
-- **Courses tab:** a card of cubes per course, one row each for lectures, recitations and homework. A blue marker shows where the class is, and `+3` / `−2` shows how far ahead or behind it you are.
-  - *With class* or *self-study* pace per course. For self-study you set a finish date, and the marker shows the class catching up.
-  - Homework cubes link to their Moodle deadlines and turn orange or red as the deadline nears or passes.
-  - With a folder per course, ⌘-click (or right-click) a cube to open its lecture recording, pset folder or recitation file.
-- **Alerts:**
-  - Reminders before each open deadline, with a *Mark done* button.
-  - An alert when Moodle posts a new deadline or moves one.
-  - An optional morning summary of what's due today and tomorrow.
-- **Download a course's files:** click the TAUdo bookmark on a Moodle course page. TAUdo saves every file into the course folder, sorted by section.
-- **Apple Calendar and Google Calendar** (optional): mirrors Moodle into a calendar of its own, or into any calendar you pick. Its alerts reach your iPhone through iCloud.
-  - For Google, add your Google account in System Settings › Internet Accounts and pick one of its calendars. Or use *Subscribe in Google Calendar…*, which subscribes Google to the Moodle link itself (Moodle's titles, refreshed by Google every few hours).
-- **Exam dates** (מועד א and ב) are filled in from [Arazim](https://arazim-project.com) for each Moodle course. Other dates that aren't on Moodle can be added by hand.
-
-## Install
-
-Requires macOS 14 or later on a Mac with Apple silicon.
-
-1. Download `TAUdo-<version>.dmg` from the [latest release](../../releases/latest), open it, and drag TAUdo into the empty circle. The circle is your Applications folder.
-
-   <img src="assets/screenshots/install.png" width="480" alt="The install window: drag the TAUdo icon into the empty circle">
-
-2. Open TAUdo from Applications. It isn't notarized by Apple, so the first time macOS says it can't be opened:
-   1. Click **Done**.
-   2. Open System Settings › Privacy & Security and scroll down to Security.
-   3. Click **Open Anyway** next to “TAUdo was blocked”, then confirm with your password or Touch ID.
-
-   You only do this once. After that TAUdo updates itself (Settings › General › Updates).
-3. The welcome window walks you through the rest:
-   - **Connect Moodle:** TAUdo opens Moodle's *Export calendar* page in your browser. Log in, click the button to get the calendar URL, and copy it. TAUdo picks it up from the clipboard.
-   - **Choose your courses:** your Moodle courses are listed, and TAUdo creates the ones you pick, already linked to Moodle.
-   - **Course folder** (optional) and **notifications**.
-
-Optional: from the ⋯ menu, choose *Install sync bookmark…* and drag the button to your bookmarks bar. Clicking it on Moodle tells TAUdo which assignments you've already submitted. On a course page, it also offers to download the course's files.
-
-To uninstall: turn off *Open at login* in Settings › General, quit TAUdo (⋯ › Quit TAUdo), then delete the app and `~/Library/Application Support/TAUdo`. If you used calendar sync, also delete its “Moodle” calendar in Calendar.
 
 ## Privacy
 
@@ -86,39 +48,8 @@ Some details:
 - Moodle's to-do list also drops activities you marked complete by hand. Untick a deadline to override; TAUdo never re-applies the same report.
 - TAU Moodle opens in guest mode, and guests get a session too. The bookmark only runs on pages with a logout link, and TAUdo ignores guest export links (`userid=1`).
 
-## Development
-
-Requires Xcode and XcodeGen (`brew install xcodegen`). Releasing also needs uv and the GitHub CLI (`brew install uv gh`).
-
-```sh
-scripts/build.sh test            # unit tests, then ./TAUdo.app (Release)
-scripts/check_translations.sh    # every UI string has a Hebrew translation
-scripts/make_icon.sh             # app icon, logo and DMG images from Sources/UI/Logo.swift
-scripts/release.sh [--publish]   # DMG + signed Sparkle appcast in dist/; --publish makes the GitHub release
-```
-
-| Flag | Effect |
-|---|---|
-| `--demo` | Sample data in memory; your saved state is never touched |
-| `--snapshot <dir>` | With `--demo`, renders the panel, settings and welcome window to PNGs offscreen (pass `-language he -AppleLanguages "(he)"` or `en` too) |
-| `-language en -AppleLanguages '(en)'` | English UI |
-| `--settings` | Opens the Settings window at launch |
-| `--dark` | Dark appearance |
-
-```
-Sources/Core      Moodle iCal parser, Hebrew/English deadline classifier, models, pacing, alerts, download filing (unit-tested)
-Sources/Services  App state and sync loop, Moodle link and bookmark, Apple Calendar, notifications, language
-Sources/UI        Menu bar panel, course cubes, settings, welcome window, logo
-Sources/he.lproj  Hebrew strings
-Tests             XCTest
-```
-
-## Logo
-
-The logo is a check mark in a solid circle, followed by TAU's heavy ring and interlocking rings. The three circles read as a checklist (done, in progress, to do). The app icon is the check circle, and the installer has you drag it into its place in the logo.
-
-TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.
-
 ## License
 
 The code is under the [MIT License](LICENSE). The ring shapes in the logo come from Tel Aviv University's logo and are not covered by it.
+
+TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.
