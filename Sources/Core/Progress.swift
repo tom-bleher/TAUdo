@@ -23,8 +23,23 @@ extension AppData {
         return courses.firstIndex { $0.moodleKey == key }
     }
 
+    /// Deadlines in the feed, minus courses you said aren't yours.
     var problemSets: [MoodleEvent] {
-        events.filter { Classifier.isProblemSet(summary: $0.summary, description: $0.description) }
+        events.filter { !($0.courseKey.map(ignoredCourseKeys.contains) ?? false) }
+            .filter { Classifier.isProblemSet(summary: $0.summary, description: $0.description) }
+    }
+
+    /// Moodle courses in the feed (each Moodle course is one CATEGORIES value), excluding ignored ones.
+    var moodleCourseKeys: [String] {
+        Set(events.compactMap(\.courseKey)).subtracting(ignoredCourseKeys).sorted()
+    }
+
+    /// A new tracked course for a Moodle course, already linked, named like Moodle names it.
+    mutating func addCourse(fromMoodle key: String) {
+        guard !courses.contains(where: { $0.moodleKey == key }) else { return }
+        var c = Course.standard(courseLabel(key))
+        c.moodleKey = key
+        courses.append(c)
     }
 
     /// Homework cube index → Moodle deadline, per course. With duplicates (e.g. a resubmission), the last due date wins.
@@ -47,9 +62,10 @@ extension AppData {
             for (i, e) in homeworkLinks(course: ci) { linked[e.uid] = (ci, hw, i) }
         }
         let moodle = problemSets.filter { !hiddenUIDs.contains($0.uid) }.map { e in
+            // Done means submitted (ticked here or reported by Moodle), not "solved": when you study ahead,
+            // a cube can be done long before this year's deadline is handed in.
             if let (ci, t, i) = linked[e.uid] {
-                let s = courses[ci].tracks[t].cells[i]
-                return Deadline(event: e, courseIndex: ci, cell: .init(track: t, index: i), isDone: s == .done || s == .skipped)
+                return Deadline(event: e, courseIndex: ci, cell: .init(track: t, index: i), isDone: doneUIDs.contains(e.uid))
             }
             return Deadline(event: e, courseIndex: courseIndex(for: e), cell: nil, isDone: doneUIDs.contains(e.uid))
         }
@@ -72,16 +88,43 @@ extension AppData {
 
     /// Moodle's export only looks back a few days, so keep earlier events from this semester:
     /// past homework stays linked to its cube and the class marker stays put.
-    mutating func mergeFeed(_ fresh: [MoodleEvent], now: Date) {
+    /// What changed in a feed refresh, for alerts.
+    struct FeedChanges: Equatable {
+        /// Upcoming deadlines that weren't in the feed before.
+        var added: [MoodleEvent] = []
+        /// Upcoming deadlines whose due time changed: (event, old due).
+        var moved: [(event: MoodleEvent, from: Date)] = []
+        static func == (a: Self, b: Self) -> Bool { a.added == b.added && a.moved.map(\.event) == b.moved.map(\.event) }
+    }
+
+    @discardableResult
+    mutating func mergeFeed(_ fresh: [MoodleEvent], now: Date) -> FeedChanges {
+        let old = Dictionary(events.map { ($0.uid, $0) }, uniquingKeysWith: { a, _ in a })
+        var changes = FeedChanges()
+        // The first sync has nothing to compare with: don't announce the whole semester.
+        if !old.isEmpty {
+            let ignored = ignoredCourseKeys
+            for e in fresh where e.due > now && Classifier.isProblemSet(summary: e.summary, description: e.description)
+                && !(e.courseKey.map(ignored.contains) ?? false) {
+                if let o = old[e.uid] {
+                    if abs(o.due.timeIntervalSince(e.due)) > 60 { changes.moved.append((e, o.due)) }
+                } else {
+                    changes.added.append(e)
+                }
+            }
+        }
         let ids = Set(fresh.map(\.uid))
         let kept = events.filter { !ids.contains($0.uid) && $0.end < now && $0.end >= settings.semesterStart }
         events = (fresh + kept).sorted { $0.start < $1.start }
+        return changes
     }
 
+    /// Marks a deadline submitted (or not). Submitting also fills its homework cube; unticking leaves the cube alone.
     mutating func setDone(_ d: Deadline, _ done: Bool) {
-        if let ci = d.courseIndex, let c = d.cell {
-            courses[ci].tracks[c.track].cells[c.index] = done ? .done : .empty
-        } else if done { doneUIDs.insert(d.id) } else { doneUIDs.remove(d.id) }
+        if done { doneUIDs.insert(d.id) } else { doneUIDs.remove(d.id) }
+        if done, let ci = d.courseIndex, let c = d.cell, [.empty, .todo].contains(courses[ci].tracks[c.track].cells[c.index]) {
+            courses[ci].tracks[c.track].cells[c.index] = .done
+        }
     }
 }
 

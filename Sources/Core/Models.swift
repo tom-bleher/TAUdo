@@ -5,7 +5,15 @@ enum CellState: String, Codable, CaseIterable, Sendable {
     case empty = "", done, todo, revisit, skipped
 
     var next: CellState { let all = Self.allCases; return all[(all.firstIndex(of: self)! + 1) % all.count] }
-    var label: String { self == .empty ? "not done" : self == .todo ? "to do" : rawValue }
+    var label: String {
+        switch self {
+        case .empty: String(localized: "Not done")
+        case .done: String(localized: "Done")
+        case .todo: String(localized: "To do")
+        case .revisit: String(localized: "Revisit")
+        case .skipped: String(localized: "Skipped")
+        }
+    }
     /// Counts as "got past this item" when measuring how far you are.
     var isPassed: Bool { self == .done || self == .revisit || self == .skipped }
 
@@ -15,6 +23,15 @@ enum CellState: String, Codable, CaseIterable, Sendable {
 
 enum TrackKind: String, Codable, CaseIterable, Sendable {
     case lecture, recitation, homework, other
+
+    var label: String {
+        switch self {
+        case .lecture: String(localized: "Lecture")
+        case .recitation: String(localized: "Recitation")
+        case .homework: String(localized: "Homework")
+        case .other: String(localized: "Other")
+        }
+    }
 
     init(from d: Decoder) throws { self = Self(rawValue: try d.singleValueContainer().decode(String.self)) ?? .other }
 }
@@ -37,10 +54,10 @@ struct Track: Codable, Identifiable, Hashable, Sendable {
     /// Row label in the panel.
     var shortName: String {
         switch kind {
-        case .lecture: "Lec"
-        case .recitation: "Rec"
-        case .homework: "HW"
-        case .other: String(name.prefix(3))
+        case .lecture: String(localized: "Lec", comment: "Short row label for lectures")
+        case .recitation: String(localized: "Rec", comment: "Short row label for recitations")
+        case .homework: String(localized: "HW", comment: "Short row label for homework")
+        case .other: String(name.prefix(4))
         }
     }
 
@@ -66,7 +83,7 @@ enum Pace: String, Codable, CaseIterable, Sendable {
     /// Study at your own pace toward a target date; the class position is shown for reference.
     case selfStudy
 
-    var label: String { self == .withClass ? "With class" : "Self-study" }
+    var label: String { self == .withClass ? String(localized: "With class") : String(localized: "Self-study") }
 
     init(from d: Decoder) throws { self = Self(rawValue: try d.singleValueContainer().decode(String.self)) ?? .withClass }
 }
@@ -99,11 +116,12 @@ struct Course: Codable, Identifiable, Hashable, Sendable {
     }
 
     /// Lecture / Recitation / Homework rows like track.html (25 / 13 / 13 for a 13-week TAU semester).
-    static func standard(_ name: String, pace: Pace = .withClass, lectures: String = "", recitations: String = "", homework: String = "") -> Course {
+    /// Lecture / Recitation / Homework rows for a 13-week TAU semester (2 lectures a week).
+    static func standard(_ name: String, pace: Pace = .withClass, lectures: String = "", recitations: String = "", homework: String = "", lectureCount: Int = 26) -> Course {
         Course(name: name, pace: pace, tracks: [
-            Track(name: "Lecture", kind: .lecture, count: 25, perWeek: 2, cells: seed(lectures)),
-            Track(name: "Recitation", kind: .recitation, count: 13, perWeek: 1, cells: seed(recitations)),
-            Track(name: "Homework", kind: .homework, count: 13, perWeek: 1, cells: seed(homework)),
+            Track(name: TrackKind.lecture.label, kind: .lecture, count: lectureCount, perWeek: 2, cells: seed(lectures)),
+            Track(name: TrackKind.recitation.label, kind: .recitation, count: 13, perWeek: 1, cells: seed(recitations)),
+            Track(name: TrackKind.homework.label, kind: .homework, count: 13, perWeek: 1, cells: seed(homework)),
         ])
     }
 
@@ -128,10 +146,16 @@ struct Settings: Codable, Hashable, Sendable {
     var notifications: Bool = true
     /// Minutes before a deadline to remind you (only while it's not done).
     var reminderMinutes: [Int] = [24 * 60, 3 * 60]
+    /// Alert when Moodle posts a new deadline or moves one.
+    var alertChanges: Bool = true
+    /// Morning summary of today's and tomorrow's deadlines (hour of day; nil = off).
+    var digestHour: Int? = 8
     /// Folder holding one subfolder per course (named like the course), for opening lecture videos, psets, …
-    var courseworkFolder: String = "~/Desktop/academic/coursework"
+    var courseworkFolder: String = ""
     /// Secret baked into the sync bookmark, so other web pages can't send taudo://sync data.
     var syncKey: String = UUID().uuidString
+    /// List deadlines that have already passed (hidden by default).
+    var showOverdue: Bool = false
     /// Show the next open deadline ("Calculus HW 4 · 2d") next to the menu bar icon.
     var menuBarShowsNext: Bool = true
 
@@ -156,7 +180,10 @@ struct Settings: Codable, Hashable, Sendable {
         calendarIncludesAllEvents = try c.decodeIfPresent(Bool.self, forKey: .calendarIncludesAllEvents) ?? z.calendarIncludesAllEvents
         notifications = try c.decodeIfPresent(Bool.self, forKey: .notifications) ?? z.notifications
         reminderMinutes = try c.decodeIfPresent([Int].self, forKey: .reminderMinutes) ?? z.reminderMinutes
+        alertChanges = try c.decodeIfPresent(Bool.self, forKey: .alertChanges) ?? z.alertChanges
+        digestHour = c.contains(.digestHour) ? try c.decodeIfPresent(Int.self, forKey: .digestHour) : z.digestHour
         menuBarShowsNext = try c.decodeIfPresent(Bool.self, forKey: .menuBarShowsNext) ?? z.menuBarShowsNext
+        showOverdue = try c.decodeIfPresent(Bool.self, forKey: .showOverdue) ?? z.showOverdue
         courseworkFolder = try c.decodeIfPresent(String.self, forKey: .courseworkFolder) ?? z.courseworkFolder
         syncKey = try c.decodeIfPresent(String.self, forKey: .syncKey) ?? z.syncKey
     }
@@ -173,8 +200,27 @@ extension AppData {
 
     /// Display name for a Moodle course key: the linked course, else Moodle's full name, else the key.
     func courseLabel(_ key: String?) -> String {
-        guard let key else { return "Other" }
+        guard let key else { return String(localized: "Other") }
         return courses.first { $0.moodleKey == key }?.name ?? Self.readableName(moodleCourseNames[key] ?? key)
+    }
+
+    /// Significant words of a course name for matching: words of 3+ letters plus anything with a digit
+    /// ("1", "1א"), so "Physics 1" and "Physics 2" stay different.
+    static func nameWords(_ s: String) -> Set<String> {
+        Set(s.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+            .filter { ($0.count > 2 || $0.contains(where: \.isNumber)) && !["for", "the", "and"].contains($0) })
+    }
+
+    /// The tracked course a Moodle course name belongs to: an exact link first, else the one course whose
+    /// name's words all appear in it. nil if none or ambiguous.
+    func course(matching moodleName: String) -> Int? {
+        let readable = Self.readableName(moodleName)
+        if let i = courses.firstIndex(where: { c in
+            c.moodleKey.map { Self.readableName($0) == readable || Self.readableName(moodleCourseNames[$0] ?? "") == readable } ?? false
+        }) { return i }
+        let target = Self.nameWords(moodleName)
+        let hits = courses.indices.filter { let w = Self.nameWords(courses[$0].name); return !w.isEmpty && w.isSubset(of: target) }
+        return hits.count == 1 ? hits[0] : nil
     }
 
     /// TAU course names look like "0321213001 - שיטות בפיזיקה עיונית 1" or "Hebrew name - English name":
@@ -204,13 +250,19 @@ struct AppData: Codable, Sendable {
     /// Last successfully fetched Moodle feed (kept so the app works offline).
     var events: [MoodleEvent] = []
     var lastSync: Date?
-    /// Deadlines marked done that aren't tied to a homework cube.
+    /// Deadlines you submitted (ticked, or reported by Moodle).
     var doneUIDs: Set<String> = []
     /// Moodle event IDs Moodle reported as submitted (only ever upgrades a cube to done).
     var submittedIDs: Set<Int> = []
     /// Deadlines hidden from the list (e.g. not actually yours to do).
     var hiddenUIDs: Set<String> = []
     var manual: [ManualDeadline] = []
+    /// Moodle courses you said aren't yours: their deadlines are ignored.
+    var ignoredCourseKeys: Set<String> = []
+    /// Finished the welcome window.
+    var onboarded = false
+    /// Course downloads whose files may still arrive in ~/Downloads.
+    var downloads: [DownloadManifest] = []
     /// Moodle course shortname → full name (sent by the sync bookmark).
     var moodleCourseNames: [String: String] = [:]
     /// Last time the TAUdo sync bookmarklet reported submission status.
@@ -228,19 +280,16 @@ struct AppData: Codable, Sendable {
         submittedIDs = try c.decodeIfPresent(Set<Int>.self, forKey: .submittedIDs) ?? []
         hiddenUIDs = try c.decodeIfPresent(Set<String>.self, forKey: .hiddenUIDs) ?? []
         manual = try c.decodeIfPresent([ManualDeadline].self, forKey: .manual) ?? []
+        ignoredCourseKeys = try c.decodeIfPresent(Set<String>.self, forKey: .ignoredCourseKeys) ?? []
+        downloads = try c.decodeIfPresent([DownloadManifest].self, forKey: .downloads) ?? []
+        // States from before the welcome window existed already have courses: don't onboard them again.
+        onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? !courses.isEmpty
         lastStatusCheck = try c.decodeIfPresent(Date.self, forKey: .lastStatusCheck)
         moodleCourseNames = try c.decodeIfPresent([String: String].self, forKey: .moodleCourseNames) ?? [:]
     }
 
-    /// Seed matching the defaults in the original track.html.
-    static var initial: AppData {
-        AppData(courses: [
-            .standard("Methods in Theoretical Physics 1", lectures: String(repeating: "d", count: 13) + "s", recitations: "dddddt", homework: "ddddddt"),
-            .standard("Analytical Mechanics", pace: .selfStudy, lectures: String(repeating: "d", count: 25), recitations: "ddddddddrdddd", homework: "dddddd.d.dddd"),
-            .standard("Calculus for Physics"),
-            .standard("Linear Algebra for Physics"),
-        ])
-    }
+    /// A fresh install starts empty; the welcome window creates courses from Moodle.
+    static var initial: AppData { AppData(courses: []) }
 }
 
 extension AppData {

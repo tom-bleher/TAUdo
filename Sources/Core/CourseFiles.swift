@@ -66,9 +66,7 @@ extension AppData {
     /// or by name (all the tracker name's words appear in Moodle's course name). Only unambiguous matches.
     mutating func autoLinkCourses(files: [UUID: CourseFiles]) {
         let digits = { (s: String) in s.filter(\.isNumber) }
-        let words = { (s: String) -> Set<String> in
-            Set(s.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { $0.count > 2 && !["for", "the", "and"].contains($0) })
-        }
+        let words = AppData.nameWords
         let keys = Set(events.compactMap(\.courseKey)).subtracting(courses.compactMap(\.moodleKey))
         for key in keys.sorted() {
             let free = courses.indices.filter { courses[$0].moodleKey == nil }
@@ -76,8 +74,9 @@ extension AppData {
                 let d = digits(key)
                 return d.count >= 8 && (files[courses[i].id]?.codes.contains { $0.hasPrefix(d) || d.hasPrefix($0) } ?? false)
             }
+            // Moodle's course label ("0321213001 - שיטות בפיזיקה עיונית 1") already carries the name.
+            let full = moodleCourseNames[key] ?? key
             let byName = free.filter { i in
-                guard let full = moodleCourseNames[key] else { return false }
                 let w = words(courses[i].name)
                 return !w.isEmpty && w.isSubset(of: words(full))
             }
