@@ -8,6 +8,7 @@ final class CalendarSync {
         var uid: String
         var title: String
         var start: Date
+        /// For all-day events, the last day (inclusive): a one-day event has `end == start`.
         var end: Date
         var isAllDay: Bool
         var notes: String
@@ -71,9 +72,11 @@ final class CalendarSync {
             let e = existing.removeValue(forKey: p.uid) ?? EKEvent(eventStore: store)
             let isNew = e.calendar == nil
             let notes = p.notes.isEmpty ? Self.marker + p.uid : p.notes + "\n\n" + Self.marker + p.uid
-            // Calendar servers may reorder alarms and store all-day ends differently: compare loosely.
+            // Calendar servers may reorder alarms and store an all-day end as 23:59:59 or the next midnight:
+            // compare loosely.
             let alarmOffsets = (e.alarms ?? []).map { -$0.relativeOffset }.sorted()
-            if !isNew, e.title == p.title, e.startDate == p.start, p.isAllDay || e.endDate == p.end, e.isAllDay == p.isAllDay,
+            if !isNew, e.title == p.title, e.startDate == p.start, e.isAllDay == p.isAllDay,
+               p.isAllDay ? Calendar.current.isDate(e.endDate.addingTimeInterval(-1), inSameDayAs: p.end) : e.endDate == p.end,
                e.notes == notes, e.url == p.url, alarmOffsets == p.alarms.sorted() { continue }
             if isNew { e.calendar = cal }
             e.title = p.title; e.startDate = p.start; e.endDate = p.end; e.isAllDay = p.isAllDay

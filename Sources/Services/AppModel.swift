@@ -337,7 +337,7 @@ final class AppModel {
             let day = e.isAllDay ? Calendar.current.startOfDay(for: e.start) : AllDay.day(of: moment, isDeadline: d != nil)
             if !e.isAllDay { title += " · " + AllDay.time(moment, day: day) }
             let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.end, day: day) } ?? []
-            return .init(uid: e.uid, title: title, start: day, end: Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day,
+            return .init(uid: e.uid, title: title, start: day, end: day,
                          isAllDay: true, notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
         }
     }
