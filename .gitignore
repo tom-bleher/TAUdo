@@ -1,5 +1,6 @@
 build/
 TAUdo.app/
+dist/
 *.xcodeproj/
 Sources/Info.plist
 .DS_Store

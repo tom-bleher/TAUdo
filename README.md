@@ -1,73 +1,104 @@
-<p align="center"><img src="assets/logo.png" width="160" alt="TAUdo logo"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+    <img src="assets/logo.png" width="360" alt="TAUdo logo">
+  </picture>
+</p>
 
 # TAUdo
 
-A macOS menu bar companion for TAU students. It combines the cube progress tracker (`track.html`) with the Moodle calendar sync (`../tau-moodle-calendar`).
+A macOS menu bar companion for Tel Aviv University students. It shows your Moodle deadlines and your progress in each course, and reminds you before things are due. Hebrew by default, with an English option.
 
-- **Menu bar**: the next open deadline and time left, e.g. `Methods HW 8 · 2d`, plus an overdue count. Deadlines you've done, or that Moodle reports as submitted, drop out.
-- **Panel**: open deadlines and exams, a two-week strip, and a cube grid per course (Lecture / Recitation / Homework). Each row shows a **class marker** (where the class is) and how far ahead (+) or behind (−) of the class you are.
-- **Pace per course**:
-  - *With class*: anything the class has covered that you haven't is outlined orange.
-  - *Self-study*: you work toward a finish date instead, and the class marker shows the class catching up.
-- **Moodle, in your own browser**: "Open Moodle in browser" opens Moodle's export page. Log in, click *Get calendar URL* and copy the link: TAUdo picks it up from the clipboard. It only checks the clipboard for 15 minutes after you click, and only accepts a Moodle export link. Deadlines then refresh on their own: at launch, every hour, after wake, and when you open the panel if the data is older than 10 minutes. Homework deadlines link to the matching homework cube by course and number (`תרגיל בית 3`, `HW 3`, `Problem Set 3`, …).
-- **TAUdo sync bookmark** (optional): click it on any signed-in Moodle page to send the link, course names and your submitted assignments to TAUdo (via `taudo://sync`). It carries a secret tied to this install, so other pages can't send it data.
-- **Your files**: with one folder per course in the coursework folder (Settings › General › Files), ⌘-click or right-click a cube to open its lecture recording (`videos/…/03 - ….mkv`, `שיעור 03.mp4`), its pset folder (`psets/pset7`) or its recitation (`recitations/rec3.pdf`). A dot marks cubes that have a file.
-- **Course linking**: Moodle courses link to your courses automatically when the TAU course code appears in the course's files, or when Moodle's course name contains your course's name. Anything left over shows a one-click "Link to…" prompt in the panel.
-- **Reminders** have a *Mark done* button.
-- **Apple Calendar** (optional): mirrors Moodle into its own calendar, with ✅ / ⬜ / 🔴 status in titles. Alerts are only set on deadlines that are still open.
-- **Exams**: add exam dates by hand in Settings › Exams, since TAU exam dates are usually not on Moodle.
+**עוזר לסטודנטים באוניברסיטת תל אביב, בשורת התפריטים של ה־Mac: מועדי הגשה מ־Moodle, מעקב התקדמות בקורסים ותזכורות.**
 
-## Use
+<p align="center">
+  <img src="assets/screenshots/panel-due-he.png" width="380" alt="Due tab">
+  <img src="assets/screenshots/panel-courses-he.png" width="380" alt="Courses tab">
+</p>
 
-Cubes: click to cycle through *not done → done → to do → revisit → skipped*. ⌥-click a cube to say "the class is here"; the class marker keeps advancing from that point. Right-click a cube for more options.
+## Features
 
-Settings › Courses: map each course to its Moodle course, and set the pace, rows, and sessions per week. To bring over progress from `track.html`, use Settings › General › Import.
+- **The next deadline in the menu bar**, with the time left (e.g. `חשבון תרגיל 4 · 22 שע׳`). A deadline disappears once you've submitted it.
+- **Due tab:** every upcoming Moodle deadline and exam, one line each. Tick one when you've handed it in. Overdue items are hidden unless you ask for them.
+- **Courses tab:** a grid of cubes per course, one row each for lectures, recitations and homework. A blue marker shows where the class is, and `+3` / `−2` shows how far ahead or behind it you are.
+  - *With class* or *self-study* pace per course. For self-study you set a finish date, and the marker shows the class catching up.
+  - Homework cubes link to their Moodle deadlines and turn orange or red as the deadline nears or passes.
+  - With a folder per course, ⌘-click (or right-click) a cube to open its lecture recording, pset folder or recitation file.
+- **Alerts:**
+  - Reminders before each open deadline, with a *Mark done* button.
+  - An alert when Moodle posts a new deadline or moves one.
+  - An optional morning summary of what's due today and tomorrow.
+- **Download a course's files:** click the TAUdo bookmark on a Moodle course page. TAUdo saves every file into the course folder, sorted by section.
+- **Apple Calendar** (optional): mirrors Moodle into a calendar of its own. Its alerts reach your iPhone through iCloud.
+- **Exams and other dates** that aren't on Moodle can be added by hand.
 
-## Build
+## Install
 
-Requires Xcode and `xcodegen` (`brew install xcodegen`).
+1. Download `TAUdo-<version>.zip` from [Releases](../../releases) and move `TAUdo.app` to Applications.
+2. The first time, right-click TAUdo › Open. The build isn't notarized by Apple yet, so macOS asks once.
+3. The welcome window walks you through the rest:
+   - **Connect Moodle:** TAUdo opens Moodle's *Export calendar* page in your browser. Log in, click the button to get the calendar URL, and copy it. TAUdo picks it up from the clipboard.
+   - **Choose your courses:** your Moodle courses are listed, and TAUdo creates the ones you pick, already linked to Moodle.
+   - **Course folder** (optional) and **notifications**.
 
-```sh
-scripts/build.sh test    # run unit tests, then build ./TAUdo.app (Release)
-open TAUdo.app
-scripts/make_icon.sh     # regenerate assets/AppIcon.icns from Sources/UI/Logo.swift
-```
+Optional: from the ⋯ menu, choose *Install sync bookmark…* and drag the button to your bookmarks bar. Clicking it on Moodle tells TAUdo which assignments you've already submitted. On a course page, it also offers to download the course's files.
 
-Debug flags: `--demo` uses sample data in memory and never touches your saved state. `--preview` also opens the panel in a normal window.
+To uninstall, quit TAUdo, delete the app and delete `~/Library/Application Support/TAUdo`.
 
-State is stored in `~/Library/Application Support/TAUdo/state.json` (mode 600, because the export link is a token for your calendar).
+## Privacy
+
+- TAUdo runs entirely on your Mac. There is no TAUdo server and no account.
+- It never sees your TAU password or your browser session.
+  - Deadlines come from Moodle's calendar export link.
+  - Submission status and course downloads come from the bookmark, which runs in your own logged-in browser tab.
+- Your data stays in `~/Library/Application Support/TAUdo/state.json`, readable only by you, since the calendar link is a key to your Moodle calendar.
+- The bookmark carries a secret tied to your copy of TAUdo, so other web pages can't send it data.
 
 ## How the Moodle parts work
 
-TAUdo never sees your browser session or password.
-
 | What | How | Needs |
 |---|---|---|
-| Deadlines | Moodle's iCal export link (`calendar/export_execute.php`), fetched automatically | Only the link; no Moodle session |
-| Export link | Copied from Moodle › Export calendar (clipboard pickup), or sent by the bookmark, which submits Moodle's export form in your tab | One login in your browser |
-| Submitted? | The bookmark asks Moodle's AJAX API for assignment due events and for which ones are still on your to-do list (`core_calendar_get_action_events_by_timesort`). Anything no longer on the list counts as submitted | A click on the bookmark while logged in |
+| Deadlines | Moodle's iCal export (`calendar/export_execute.php`), fetched hourly, on wake, and when you open the panel | Only the link |
+| Submitted assignments | The bookmark compares assignment due events with Moodle's to-do list (`core_calendar_get_action_events_by_timesort`). An assignment no longer on the list counts as submitted | A click on the bookmark while logged in |
+| Course files | Moodle's *Download course content* zip if the course allows it. Otherwise `core_courseformat_get_state`, which gives files as `mod/resource/view.php?redirect=1` and folders as `download_folder.php` zips, plus files linked in section text | A click on the bookmark on the course page |
 
-Moodle's to-do list also drops activities whose completion you ticked by hand, so those count as submitted too. Untick a cube to override; TAUdo never re-applies the same report.
+Some details:
+- Homework deadlines are matched to cubes by course and number (`תרגיל בית 3`, `הגשת שיעורי בית 3`, `HW 3`, `Problem Set 3`, …).
+- Moodle courses are linked to your courses by name, or by the TAU course code if it appears in the course's files.
+- Moodle's export only looks back a few days, so TAUdo keeps this semester's past events.
+- Moodle's to-do list also drops activities you marked complete by hand. Untick a deadline to override; TAUdo never re-applies the same report.
+- TAU Moodle opens in guest mode, and guests get a session too. The bookmark only runs on pages with a logout link, and TAUdo ignores guest export links (`userid=1`).
 
-Moodle's export only looks back a few days. TAUdo therefore keeps past events from the current semester, so past homework stays linked to its cube.
+## Development
 
-If the saved state can't be read, TAUdo keeps it as `state.unreadable-<date>.json` and starts fresh. It never overwrites the file silently.
+Requires Xcode and XcodeGen (`brew install xcodegen`).
 
-TAU Moodle opens in guest mode, and guests also get a session key. The bookmark only runs on pages that have a logout link, and TAUdo ignores export links that belong to the guest user (`userid=1`). Links from the bookmark are only accepted for the configured Moodle host.
+```sh
+scripts/build.sh test            # unit tests, then ./TAUdo.app (Release)
+scripts/check_translations.sh    # every UI string has a Hebrew translation
+scripts/make_icon.sh             # app icon and logo images from Sources/UI/Logo.swift
+scripts/release.sh               # dist/TAUdo-<version>.zip (SIGN_ID / NOTARY_PROFILE to sign and notarize)
+```
+
+| Flag | Effect |
+|---|---|
+| `--demo` | Sample data in memory; your saved state is never touched |
+| `--snapshot <dir>` | With `--demo`, renders the panel, settings and welcome window to PNGs offscreen (pass `-language he -AppleLanguages "(he)"` or `en` too) |
+| `-language en -AppleLanguages '(en)'` | English UI |
+| `--dark` | Dark appearance |
+
+```
+Sources/Core      Moodle iCal parser, Hebrew/English deadline classifier, models, pacing, alerts, download filing (unit-tested)
+Sources/Services  App state and sync loop, Moodle link and bookmark, Apple Calendar, notifications, language
+Sources/UI        Menu bar panel, course cubes, settings, welcome window, logo
+Sources/he.lproj  Hebrew strings
+Tests             XCTest
+```
 
 ## Logo
 
-Based on TAU's logo:
-- **App icon:** the logo's solid circle with the torch emblem, with the bowl drawn as a check mark.
-- **Menu bar:** the logo's three circles, read as a checklist: done ✓, in progress (heavy ring), to do (thin rings).
+- **App icon:** TAU's solid circle with its torch emblem, with the bowl redrawn as a check mark.
+- **Logo above:** that circle, followed by TAU's heavy ring and interlocking rings.
+- **Menu bar:** the three circles read as a checklist (done, in progress, to do).
 
-It's for personal use, since the TAU logo is the university's trademark. To regenerate the icon, run `scripts/make_icon.sh`.
-
-## Layout
-
-```
-Sources/Core      ICS parser, Hebrew/English classifier, models, pacing logic (unit-tested, no UI)
-Sources/Services  AppModel (state + sync loop), MoodleFeed, MoodleConnect (browser link + bookmark), CalendarSync (EventKit), Notifier
-Sources/UI        Menu bar app, panel, course cubes, settings, logo
-Tests             XCTest for Core and the Moodle link/bookmark handling
-```
+TAUdo is not affiliated with or endorsed by Tel Aviv University. The TAU logo and name are the university's trademarks.

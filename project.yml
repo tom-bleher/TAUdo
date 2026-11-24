@@ -1,6 +1,7 @@
 name: TAUdo
 options:
-  bundleIdPrefix: local.taudo
+  bundleIdPrefix: io.github.tombleher
+  developmentLanguage: en
   deploymentTarget:
     macOS: "14.0"
 settings:
@@ -10,6 +11,7 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ""
+    SWIFT_EMIT_LOC_STRINGS: YES
 targets:
   TAUdo:
     type: application
@@ -23,23 +25,23 @@ targets:
       properties:
         CFBundleDisplayName: TAUdo
         CFBundleIconFile: AppIcon
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "0.2.0"
+        CFBundleVersion: "2"
         LSUIElement: true
         CFBundleURLTypes:
-          - CFBundleURLName: local.taudo.sync
+          - CFBundleURLName: io.github.tombleher.TAUdo.sync
             CFBundleURLSchemes: [taudo]
         LSApplicationCategoryType: public.app-category.education
         NSCalendarsFullAccessUsageDescription: TAUdo writes your Moodle deadlines into its own calendar so they show up in Apple Calendar.
         NSCalendarsUsageDescription: TAUdo writes your Moodle deadlines into its own calendar so they show up in Apple Calendar.
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: local.taudo.app
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.tombleher.TAUdo
         ENABLE_HARDENED_RUNTIME: NO
   TAUdoTests:
     type: bundle.unit-test
     platform: macOS
-    sources: [Tests, Sources/Core, Sources/Services/MoodleFeed.swift, Sources/Services/MoodleConnect.swift]
+    sources: [Tests, Sources/Core, Sources/Services/MoodleFeed.swift, Sources/Services/MoodleConnect.swift, Sources/Services/Lang.swift, Sources/Services/DownloadMover.swift]
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
