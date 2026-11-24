@@ -65,7 +65,7 @@ struct PanelView: View {
                 Text(syncText)
                 Divider()
                 Button("Connect Moodle in browser…") { model.connect() }
-                Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey) }
+                Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey, base: model.data.settings.moodleBaseURL) }
                 Button("Check for Updates…") { show { Updates.shared.check() } }
                 Button("Settings…") { show { openSettings() } }.keyboardShortcut(",")
                 Divider()

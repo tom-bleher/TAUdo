@@ -110,7 +110,7 @@ struct MoodleSettings: View {
                         if let t = model.data.lastStatusCheck { Text("Last used \(t.relative())").footnote() }
                     }
                     Spacer(minLength: 8)
-                    Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey) }
+                    Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey, base: model.data.settings.moodleBaseURL) }
                 }
             } footer: {
                 Text("Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files.").footnote()

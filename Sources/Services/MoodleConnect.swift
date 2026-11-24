@@ -73,11 +73,14 @@ enum MoodleConnect {
     /// asks Moodle's AJAX API which assignment deadlines are still to do, and hands both to TAUdo.
     static let bookmarkletSource = #"""
     (async () => {
+      // Only on your Moodle: another page could imitate Moodle's page objects (even URL or JSON), not its address.
+      if (location.origin !== __ORIGIN__) { alert(__LOGIN__); return; }
+      const base = __BASE__;
       const M = window.M;
       if (!M || !M.cfg || !M.cfg.sesskey || !document.querySelector('a[href*="/login/logout.php"]')) {
         alert(__LOGIN__); return;
       }
-      const base = M.cfg.wwwroot.replace(/\/+$/, ""), sesskey = M.cfg.sesskey;
+      const sesskey = M.cfg.sesskey;
       const from = Math.floor(Date.now() / 1000) - 150 * 86400;
       let exportURL = null;
       try {
@@ -172,6 +175,7 @@ enum MoodleConnect {
             if (sections[n] === undefined) sections[n] = ((sec.querySelector(".sectionname") || {}).textContent || "").trim();
           });
           document.querySelectorAll('a[href*="/pluginfile.php/"]').forEach(a => {
+            if (!a.href.startsWith(base + "/")) return;
             const sec = a.closest('[data-for="section"]');
             items.push({u: a.href, s: sec ? Number(sec.dataset.number || 0) : 0});
           });
@@ -201,11 +205,15 @@ enum MoodleConnect {
     })();
     """#
 
-    static func bookmarkletURL(key: String) -> String {
+    /// The bookmark for `base` (your Moodle, e.g. https://moodle.tau.ac.il), carrying your sync key.
+    static func bookmarkletURL(key: String, base: String) -> String {
         let ask = String(localized: "TAUdo: download all files from this course to your course folder?")
         let login = String(localized: "TAUdo: open Moodle and log in first, then click this bookmark again.")
         let js = { (s: String) in (try? String(data: JSONEncoder().encode(s), encoding: .utf8)) ?? "\"\"" }
+        let base = base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let origin = URL(string: base).flatMap { u in u.host.map { "\(u.scheme ?? "https")://\($0)" + (u.port.map { ":\($0)" } ?? "") } } ?? base
         let code = bookmarkletSource.replacingOccurrences(of: "__KEY__", with: key)
+            .replacingOccurrences(of: "__ORIGIN__", with: js(origin)).replacingOccurrences(of: "__BASE__", with: js(base))
             .replacingOccurrences(of: "__ASK__", with: js(ask)).replacingOccurrences(of: "__LOGIN__", with: js(login)).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-_.!~*'()")
         return "javascript:" + code.addingPercentEncoding(withAllowedCharacters: allowed)!
@@ -221,7 +229,7 @@ enum MoodleConnect {
         return URL(string: "https://calendar.google.com/calendar/render?cid=" + cid)
     }
 
-    static func openBookmarkletPage(key: String) {
+    static func openBookmarkletPage(key: String, base: String) {
         let style = """
         <style>:root{color-scheme:light dark}
         body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1.25rem;color:#1d1d1f;background:#fff}
@@ -232,7 +240,7 @@ enum MoodleConnect {
         @media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}p{color:#c7c7cc}.drag{border-color:#48526a}.drag span{color:#98989d}a.bm{background:#3b6fd4}}
         </style>
         """
-        let link = bookmarkletURL(key: key)
+        let link = bookmarkletURL(key: key, base: base)
         let html = Lang.isHebrew ? """
         <!doctype html><html dir="rtl" lang="he"><meta charset="utf-8"><title>סימניית הסנכרון של TAUdo</title>\(style)
         <h1>סימניית הסנכרון של TAUdo</h1>

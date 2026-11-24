@@ -182,7 +182,8 @@ final class ConnectTests: XCTestCase {
 
     func testBookmarkletIsValidJavaScript() throws {
         // Decodes the javascript: URL and syntax-checks it with JavaScriptCore.
-        let code = try XCTUnwrap(MoodleConnect.bookmarkletURL(key: "k").dropFirst("javascript:".count).removingPercentEncoding)
+        let code = try XCTUnwrap(MoodleConnect.bookmarkletURL(key: "k", base: "https://moodle.tau.ac.il/").dropFirst("javascript:".count).removingPercentEncoding)
+        XCTAssertTrue(code.contains(#"if (location.origin !== "https:\/\/moodle.tau.ac.il")"#), "only runs on your Moodle")
         let ctx = try XCTUnwrap(JSContext())
         var error: String?
         ctx.exceptionHandler = { _, e in error = e?.toString() }
