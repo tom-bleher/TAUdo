@@ -25,12 +25,26 @@ final class CalendarSync {
 
     var hasAccess: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
 
+    /// A calendar TAUdo can write to, for the picker in Settings.
+    struct Choice: Hashable {
+        var id: String
+        var title: String
+        /// The account it belongs to: "iCloud", a Google address, "On My Mac", …
+        var account: String
+    }
+
+    /// Calendars you can add events to, grouped by account. A Google account added in
+    /// System Settings › Internet Accounts shows up here, so TAUdo can write straight into Google Calendar.
+    func writableCalendars() -> [Choice] {
+        store.calendars(for: .event).filter(\.allowsContentModifications)
+            .map { Choice(id: $0.calendarIdentifier, title: $0.title, account: $0.source?.title ?? "") }
+            .sorted { ($0.account, $0.title) < ($1.account, $1.title) }
+    }
+
     /// Finds the calendar by id, else by name, else creates it (iCloud if available, otherwise On My Mac).
+    /// Never renames: the calendar may be one of yours that you picked in Settings.
     func calendar(id: String?, name: String) throws -> EKCalendar {
-        if let id, let c = store.calendar(withIdentifier: id) {
-            if c.title != name { c.title = name; try store.saveCalendar(c, commit: true) }
-            return c
-        }
+        if let id, let c = store.calendar(withIdentifier: id) { return c }
         if let c = store.calendars(for: .event).first(where: { $0.title == name && $0.allowsContentModifications }) { return c }
         let c = EKCalendar(for: .event, eventStore: store)
         c.title = name
@@ -42,8 +56,9 @@ final class CalendarSync {
         return c
     }
 
-    /// Creates/updates events by Moodle UID; deletes future events that left the feed. Past events are kept.
-    func sync(_ planned: [Planned], into cal: EKCalendar, now: Date = .now) throws -> (created: Int, updated: Int, deleted: Int) {
+    /// Creates/updates events by Moodle UID and deletes ones no longer wanted from `keepBefore` on.
+    /// Older events are kept: TAUdo only remembers this semester, so they're last semester's history.
+    func sync(_ planned: [Planned], into cal: EKCalendar, keepBefore: Date, now: Date = .now) throws -> (created: Int, updated: Int, deleted: Int) {
         let lo = min(planned.map(\.start).min() ?? now, now).addingTimeInterval(-86400)
         let hi = max(planned.map(\.end).max() ?? now, now).addingTimeInterval(400 * 86400)
         var existing: [String: EKEvent] = [:]
@@ -67,11 +82,23 @@ final class CalendarSync {
             try store.save(e, span: .thisEvent, commit: false)
             if isNew { created += 1 } else { updated += 1 }
         }
-        for e in existing.values where e.startDate >= now {
+        for e in existing.values where e.startDate >= min(keepBefore, now) {
             try store.remove(e, span: .thisEvent, commit: false); deleted += 1
         }
         try store.commit()
         return (created, updated, deleted)
+    }
+
+    /// Deletes the events TAUdo put in a calendar (and nothing else), e.g. after you pick another calendar.
+    func removeOurEvents(fromCalendar id: String, now: Date = .now) throws {
+        guard let cal = store.calendar(withIdentifier: id) else { return }
+        let year: TimeInterval = 365 * 86400
+        // Event queries span at most four years.
+        for e in store.events(matching: store.predicateForEvents(withStart: now - 2 * year, end: now + 2 * year, calendars: [cal]))
+        where Self.uid(e.notes) != nil {
+            try store.remove(e, span: .thisEvent, commit: false)
+        }
+        try store.commit()
     }
 
     static func uid(_ notes: String?) -> String? {

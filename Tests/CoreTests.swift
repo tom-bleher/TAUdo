@@ -458,4 +458,29 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(group(6 * 24), .thisWeek)
         XCTAssertEqual(group(7 * 24), .later)
     }
+
+    func testGoogleSubscribeURL() throws {
+        let link = "https://moodle.tau.ac.il/calendar/export_execute.php?userid=5&authtoken=ab&preset_what=all"
+        let url = try XCTUnwrap(MoodleConnect.googleSubscribeURL(link))
+        let cid = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "cid" }?.value)
+        XCTAssertEqual(url.host, "calendar.google.com")
+        XCTAssertEqual(cid, "webcal://moodle.tau.ac.il/calendar/export_execute.php?userid=5&authtoken=ab&preset_what=all")
+        XCTAssertNil(MoodleConnect.googleSubscribeURL("http://example.com/x.ics"))
+    }
+
+    func testAllDayEvents() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Jerusalem")!
+        func at(_ d: Int, _ h: Int, _ m: Int) -> Date { cal.date(from: DateComponents(year: 2026, month: 12, day: d, hour: h, minute: m))! }
+        // An evening deadline sits on its own day; a midnight one ends the day before.
+        XCTAssertEqual(AllDay.day(of: at(3, 23, 29), isDeadline: true, calendar: cal), at(3, 0, 0))
+        XCTAssertEqual(AllDay.day(of: at(4, 0, 0), isDeadline: true, calendar: cal), at(3, 0, 0))
+        XCTAssertEqual(AllDay.day(of: at(4, 0, 0), isDeadline: false, calendar: cal), at(4, 0, 0))
+        XCTAssertEqual(AllDay.time(at(3, 23, 29), day: at(3, 0, 0), calendar: cal), "23:29")
+        XCTAssertEqual(AllDay.time(at(4, 0, 0), day: at(3, 0, 0), calendar: cal), "24:00")
+        // Alerts still fire 1 day and 3 hours before 23:29.
+        let due = at(3, 23, 29), day = at(3, 0, 0)
+        let fire = AllDay.alarms(leadMinutes: [1440, 180], due: due, day: day).map { day.addingTimeInterval(-$0) }
+        XCTAssertEqual(fire, [at(2, 23, 29), at(3, 20, 29)])
+    }
 }

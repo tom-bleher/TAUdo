@@ -31,6 +31,7 @@ enum Demo {
         d.manual = [ManualDeadline(title: "מבחן אמצע", due: now.addingTimeInterval(12 * 86400), courseID: d.courses[3].id)]
         d.lastSync = now
         d.settings.exportURL = "https://moodle.tau.ac.il/calendar/export_execute.php?userid=12345&authtoken=demo"
+        d.settings.calendarSync = true
         return d
     }
 }

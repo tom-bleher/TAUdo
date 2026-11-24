@@ -10,6 +10,8 @@ final class AppModel {
     var syncing = false
     var feedError: String?
     var calendarStatus: String?
+    /// Calendars TAUdo may write to (empty until calendar access is granted).
+    var calendarChoices: [CalendarSync.Choice] = []
     /// Set while waiting for the export link to be copied in the browser.
     var connectStatus: String?
     /// Files behind each course's cubes (lecture videos, pset folders, …), by course id.
@@ -279,33 +281,64 @@ final class AppModel {
                 return
             }
             let cal = try calendar.calendar(id: data.settings.calendarID, name: data.settings.calendarName)
+            refreshCalendarChoices()
             if data.settings.calendarID != cal.calendarIdentifier { data.settings.calendarID = cal.calendarIdentifier }
             var planned = plannedEvents(deadlines)
             if !alarms { for i in planned.indices { planned[i].alarms = [] } }
-            let r = try calendar.sync(planned, into: cal)
+            let r = try calendar.sync(planned, into: cal, keepBefore: data.settings.semesterStart)
             calendarStatus = String(localized: "Calendar “\(cal.title)” is up to date") + (r.created + r.updated + r.deleted > 0 ? " (+\(r.created) ~\(r.updated) −\(r.deleted))" : "")
         } catch {
             calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)")
         }
     }
 
+    func refreshCalendarChoices() {
+        calendarChoices = calendar.hasAccess ? calendar.writableCalendars() : []
+    }
+
+    /// Moves TAUdo's events to another calendar (nil: a new calendar of its own), clearing them from the old one.
+    func useCalendar(_ id: String?) {
+        let old = data.settings.calendarID
+        guard id != old else { return }
+        if let old, calendar.hasAccess {
+            do { try calendar.removeOurEvents(fromCalendar: old) }
+            catch { calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)") }
+        }
+        data.settings.calendarID = id
+        push()
+    }
+
+    /// Opens Google Calendar's "add this calendar" prompt for the Moodle export link, and copies the link
+    /// for Google's Settings › Add calendar › From URL in case the prompt doesn't fill it in.
+    func subscribeInGoogleCalendar() {
+        let link = data.settings.exportURL
+        guard MoodleConnect.googleSubscribeURL(link) != nil else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(link, forType: .string)
+        if let url = MoodleConnect.googleSubscribeURL(link) { NSWorkspace.shared.open(url) }
+    }
+
     func plannedEvents(_ deadlines: [Deadline]) -> [CalendarSync.Planned] {
         let byUID = Dictionary(deadlines.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let s = data.settings
-        var events = data.events.filter { s.calendarIncludesAllEvents || byUID[$0.uid] != nil }
+        // Courses you said aren't yours and deadlines you hid stay out of the calendar too.
+        let hidden = data.ignoredCourseKeys
+        var events = data.events
+            .filter { !($0.courseKey.map(hidden.contains) ?? false) && !data.hiddenUIDs.contains($0.uid) }
+            .filter { s.calendarIncludesAllEvents || byUID[$0.uid] != nil }
         events += deadlines.filter(\.isManual).map(\.event)
         return events.map { e in
             let d = byUID[e.uid]
             let course: String? = (d?.courseIndex ?? data.courseIndex(for: e)).map { data.courses[$0].name } ?? e.courseKey.map(data.courseLabel)
             var title = (course.map { "[\($0)] " } ?? "") + Classifier.cleanTitle(e.summary)
-            var start = e.start, alarms: [TimeInterval] = []
-            if let d {
-                title = (d.isDone ? "✅ " : d.due < now ? "🔴 " : "⬜ ") + title
-                if e.end == e.start && !e.isAllDay { start = e.end.addingTimeInterval(-30 * 60) }  // show deadlines as a 30-min block
-                if !d.isDone { alarms = s.reminderMinutes.map { Double($0) * 60 + e.end.timeIntervalSince(start) } }
-            }
-            return .init(uid: e.uid, title: title, start: start, end: e.end, isAllDay: e.isAllDay,
-                         notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
+            if let d { title = (d.isDone ? "✅ " : d.due < now ? "🔴 " : "⬜ ") + title }
+            // All-day events on the day they fall; the time goes in the title.
+            let moment = d != nil ? e.end : e.start
+            let day = e.isAllDay ? Calendar.current.startOfDay(for: e.start) : AllDay.day(of: moment, isDeadline: d != nil)
+            if !e.isAllDay { title += " · " + AllDay.time(moment, day: day) }
+            let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.end, day: day) } ?? []
+            return .init(uid: e.uid, title: title, start: day, end: Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day,
+                         isAllDay: true, notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
         }
     }
 

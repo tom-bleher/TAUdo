@@ -29,7 +29,8 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
   - An alert when Moodle posts a new deadline or moves one.
   - An optional morning summary of what's due today and tomorrow.
 - **Download a course's files:** click the TAUdo bookmark on a Moodle course page. TAUdo saves every file into the course folder, sorted by section.
-- **Apple Calendar** (optional): mirrors Moodle into a calendar of its own. Its alerts reach your iPhone through iCloud.
+- **Apple Calendar and Google Calendar** (optional): mirrors Moodle into a calendar of its own, or into any calendar you pick. Its alerts reach your iPhone through iCloud.
+  - For Google, add your Google account in System Settings › Internet Accounts and pick one of its calendars. Or use *Subscribe in Google Calendar…*, which subscribes Google to the Moodle link itself (Moodle's titles, refreshed by Google every few hours).
 - **Exams and other dates** that aren't on Moodle can be added by hand.
 
 ## Install

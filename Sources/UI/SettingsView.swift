@@ -170,16 +170,36 @@ struct NotificationSettings: View {
                 Toggle("Mirror Moodle into a calendar", isOn: $m.data.settings.calendarSync)
                     .onChange(of: model.data.settings.calendarSync) { model.push() }
                 if model.data.settings.calendarSync {
-                    TextField("Calendar name", text: $m.data.settings.calendarName).onSubmit { model.push() }
+                    if !model.calendarChoices.isEmpty {
+                        Picker("Calendar", selection: Binding(get: { model.data.settings.calendarID }, set: { model.useCalendar($0) })) {
+                            Text("New calendar “\(model.data.settings.calendarName)”").tag(String?.none)
+                            ForEach(Dictionary(grouping: model.calendarChoices, by: \.account).sorted { $0.key < $1.key }, id: \.key) { account, calendars in
+                                Section(account) {
+                                    ForEach(calendars, id: \.id) { Text($0.title).tag(Optional($0.id)) }
+                                }
+                            }
+                        }
+                    }
                     Toggle("Include lectures and other events, not only deadlines", isOn: $m.data.settings.calendarIncludesAllEvents)
                         .onChange(of: model.data.settings.calendarIncludesAllEvents) { model.push() }
                     if let s = model.calendarStatus { Text(s).footnote() }
                 }
-            } header: { Text("Apple Calendar") } footer: {
+            } header: { Text("Calendar") } footer: {
                 Text("With mirroring on, reminders are calendar alerts instead of Mac notifications, so they reach your iPhone too.").footnote()
+            }
+            Section {
+                HStack {
+                    Text("Google Calendar")
+                    Spacer(minLength: 8)
+                    Button("Subscribe in Google Calendar…") { model.subscribeInGoogleCalendar() }
+                        .disabled(model.data.settings.exportURL.isEmpty)
+                }
+            } footer: {
+                Text("Best: add your Google account in System Settings › Internet Accounts, then pick one of its calendars above. TAUdo then writes to Google directly, with done marks and alerts. Or subscribe Google Calendar to your Moodle link: it shows Moodle's own titles and Google refreshes it only every few hours.").footnote()
             }
         }
         .settingsForm()
+        .onAppear { model.refreshCalendarChoices() }
     }
 }
 
