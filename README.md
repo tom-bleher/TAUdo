@@ -35,8 +35,9 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 
 ## Install
 
-1. Download `TAUdo-<version>.zip` from [Releases](../../releases) and move `TAUdo.app` to Applications.
+1. Download `TAUdo-<version>.dmg` from [Releases](../../releases), open it and drag TAUdo into the empty circle (Applications).
 2. The first time, right-click TAUdo › Open. The build isn't notarized by Apple yet, so macOS asks once.
+   After that TAUdo updates itself: Settings › General › Updates.
 3. The welcome window walks you through the rest:
    - **Connect Moodle:** TAUdo opens Moodle's *Export calendar* page in your browser. Log in, click the button to get the calendar URL, and copy it. TAUdo picks it up from the clipboard.
    - **Choose your courses:** your Moodle courses are listed, and TAUdo creates the ones you pick, already linked to Moodle.
@@ -78,7 +79,7 @@ Requires Xcode and XcodeGen (`brew install xcodegen`).
 scripts/build.sh test            # unit tests, then ./TAUdo.app (Release)
 scripts/check_translations.sh    # every UI string has a Hebrew translation
 scripts/make_icon.sh             # app icon, logo and DMG images from Sources/UI/Logo.swift
-scripts/release.sh               # dist/TAUdo-<version>.zip (SIGN_ID / NOTARY_PROFILE to sign and notarize)
+scripts/release.sh [--publish]   # DMG + signed Sparkle appcast in dist/; --publish makes the GitHub release
 ```
 
 | Flag | Effect |
