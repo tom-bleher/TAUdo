@@ -9,15 +9,28 @@
 
 A macOS menu bar companion for Tel Aviv University students. It shows your Moodle deadlines and your progress in each course, and reminds you before things are due. Hebrew by default, with an English option.
 
+**Lives in the menu bar:** the next deadline at a glance, everything that's due one click away.
+
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/panel-due-he-dark.png">
-    <img src="assets/screenshots/panel-due-he.png" width="380" alt="Due tab: upcoming deadlines and exams, grouped by when they're due">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/menubar-he-dark.png">
+    <img src="assets/screenshots/menubar-he.png" width="520" alt="TAUdo's menu bar item with its panel open">
   </picture>
+</p>
+
+**Tracks each course:** lectures, recitations and homework, and how far ahead or behind the class you are.
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/panel-courses-he-dark.png">
-    <img src="assets/screenshots/panel-courses-he.png" width="380" alt="Courses tab: lectures, recitations and homework per course, and where the class is">
+    <img src="assets/screenshots/panel-courses-he.png" width="420" alt="The Courses tab">
   </picture>
+</p>
+
+**Syncs to your calendar:** each deadline as an all-day event with its due time and a done mark, in Apple Calendar or Google Calendar.
+
+<p align="center">
+  <img src="assets/screenshots/calendar-he.png" width="720" alt="TAUdo deadlines in Apple Calendar">
 </p>
 
 ## Privacy
