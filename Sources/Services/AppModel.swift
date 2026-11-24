@@ -287,7 +287,7 @@ final class AppModel {
             }
             // Read after the awaits above, so course indices match the courses as they are now.
             let deadlines = data.deadlines()
-            let names = Dictionary(deadlines.map { ($0.id, courseName($0)) }, uniquingKeysWith: { a, _ in a })
+            let names = Dictionary(deadlines.map { ($0.id, self.courseName($0)) }, uniquingKeysWith: { a, _ in a })
             await Notifier.reschedule(.init(deadlines: deadlines, courseName: { names[$0.id] ?? "" },
                                             leadMinutes: s.reminderMinutes, reminders: s.notifications && !calendarReminds,
                                             digestHour: s.notifications ? s.digestHour : nil))
