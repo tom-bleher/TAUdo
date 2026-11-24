@@ -6,26 +6,44 @@
 # The app's SUFeedURL is the latest release's appcast.xml, so publishing is what ships an update.
 # Bump CFBundleVersion in project.yml for every release: Sparkle compares it.
 #
-# Signing: ad-hoc by default (first launch needs right-click › Open). With
+# Signing: ad-hoc by default (on first launch macOS blocks it until System Settings › Privacy & Security ›
+# Open Anyway). With
 #   SIGN_ID="Developer ID Application: …" [NOTARY_PROFILE=<notarytool profile>]
 # the app and DMG are signed with the hardened runtime and, with a profile, notarized and stapled.
 #
 # The feed is signed with the EdDSA key in the login keychain under account "taudo"
-# (its public half is SUPublicEDKey in project.yml). Back it up; without it no update can ship:
-#   build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys --account taudo -x taudo-sparkle-key
+# (its public half is SUPublicEDKey in project.yml). Back it up outside the repo, e.g. into a password manager;
+# without it no update can ship:
+#   build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys --account taudo -x ~/taudo-sparkle-key
 set -euo pipefail
 cd "${0:A:h:h}"
+die() { print -u2 "error: $*"; exit 1 }
 publish=0
 [[ "${1:-}" == --publish ]] && publish=1
+
+# Publish exactly what's on GitHub: the tag must point at the code that was built.
+if (( publish )); then
+  [[ -z "$(git status --porcelain)" ]] || die "commit your changes first"
+  gh auth status >/dev/null 2>&1 || die "gh isn't logged in (gh auth login)"
+  git fetch -q origin main
+  head=$(git rev-parse HEAD)
+  [[ "$head" == "$(git rev-parse origin/main)" ]] || die "HEAD isn't origin/main: push, or check out main"
+fi
 
 scripts/build.sh test
 app=TAUdo.app
 version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" $app/Contents/Info.plist)
 build=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" $app/Contents/Info.plist)
 if (( publish )); then
-  [[ -z "$(git status --porcelain)" ]] || { print -u2 "error: commit your changes first"; exit 1 }
-  ! gh release view "v$version" >/dev/null 2>&1 || { print -u2 "error: v$version is already released: bump the version"; exit 1 }
+  ! gh release view "v$version" >/dev/null 2>&1 || die "v$version is already released: bump the version in project.yml"
+  # Sparkle only offers a higher CFBundleVersion than the one installed.
+  feed=$(/usr/libexec/PlistBuddy -c "Print SUFeedURL" $app/Contents/Info.plist)
+  published=$( { curl -fsL "$feed" || true } | sed -n 's:.*<sparkle\:version>\([0-9]*\)</sparkle\:version>.*:\1:p' | sort -n | tail -1)
+  (( build > ${published:-0} )) || die "CFBundleVersion $build isn't above the published $published: bump it in project.yml"
 fi
+
+work=$(mktemp -d)
+trap 'hdiutil detach "$work/mnt" -quiet -force 2>/dev/null || true; rm -rf "$work"' EXIT
 
 notarize() {  # file to submit, file to staple
   [[ -n "${NOTARY_PROFILE:-}" ]] || return 0
@@ -34,7 +52,7 @@ notarize() {  # file to submit, file to staple
 }
 if [[ -n "${SIGN_ID:-}" ]]; then
   codesign --force --deep --options runtime --timestamp --sign "$SIGN_ID" $app
-  zip=$(mktemp -d)/TAUdo.zip
+  zip=$work/TAUdo.zip
   ditto -c -k --keepParent $app "$zip"
   notarize "$zip" $app
 fi
@@ -42,8 +60,6 @@ fi
 out=dist/$version
 dmg=$out/TAUdo-$version.dmg
 rm -rf "$out"; mkdir -p "$out"
-work=$(mktemp -d)
-trap 'hdiutil detach "$work/mnt" -quiet -force 2>/dev/null || true; rm -rf "$work"' EXIT
 
 # A drag-to-Applications window. Window size and icon positions match scripts/make_icon.swift.
 mkdir -p "$work/stage/.background"
@@ -72,5 +88,5 @@ grep -q 'sparkle:edSignature' "$out/appcast.xml" || { print -u2 "error: appcast.
 print "wrote $dmg and $out/appcast.xml (version $version, build $build)"
 
 if (( publish )); then
-  gh release create "v$version" "$dmg" "$out/appcast.xml" --title "TAUdo $version" --generate-notes
+  gh release create "v$version" "$dmg" "$out/appcast.xml" --target "$head" --title "TAUdo $version" --generate-notes
 fi

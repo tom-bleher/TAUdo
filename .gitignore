@@ -4,3 +4,4 @@ dist/
 *.xcodeproj/
 Sources/Info.plist
 .DS_Store
+*sparkle-key*
