@@ -19,8 +19,8 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 ## Features
 
 - **The next deadline in the menu bar**, with the time left (e.g. `חשבון תרגיל 4 · 22 שע׳`). A deadline disappears once you've submitted it.
-- **Due tab:** every upcoming Moodle deadline and exam, one line each. Tick one when you've handed it in. Overdue items are hidden unless you ask for them.
-- **Courses tab:** a grid of cubes per course, one row each for lectures, recitations and homework. A blue marker shows where the class is, and `+3` / `−2` shows how far ahead or behind it you are.
+- **Due tab:** every upcoming Moodle deadline and exam, grouped into today, tomorrow, the next 7 days and later. Tick one when you've handed it in. Overdue items are hidden unless you ask for them.
+- **Courses tab:** a card of cubes per course, one row each for lectures, recitations and homework. A blue marker shows where the class is, and `+3` / `−2` shows how far ahead or behind it you are.
   - *With class* or *self-study* pace per course. For self-study you set a finish date, and the marker shows the class catching up.
   - Homework cubes link to their Moodle deadlines and turn orange or red as the deadline nears or passes.
   - With a folder per course, ⌘-click (or right-click) a cube to open its lecture recording, pset folder or recitation file.
@@ -85,6 +85,7 @@ scripts/release.sh               # dist/TAUdo-<version>.zip (SIGN_ID / NOTARY_PR
 | `--demo` | Sample data in memory; your saved state is never touched |
 | `--snapshot <dir>` | With `--demo`, renders the panel, settings and welcome window to PNGs offscreen (pass `-language he -AppleLanguages "(he)"` or `en` too) |
 | `-language en -AppleLanguages '(en)'` | English UI |
+| `--settings` | Opens the Settings window at launch |
 | `--dark` | Dark appearance |
 
 ```

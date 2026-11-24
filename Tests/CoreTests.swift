@@ -443,4 +443,19 @@ final class DownloadSafetyTests: XCTestCase {
         d.courses[0].moodleKey = "0321111001 - פיזיקה 1"
         XCTAssertEqual(d.course(matching: "פיזיקה 1"), 0, "exact link wins")
     }
+
+    func testDueGroups() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Jerusalem")!
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 22))!
+        func group(_ hours: Double) -> DueGroup { DueGroup.of(now.addingTimeInterval(hours * 3600), now: now, calendar: cal) }
+        XCTAssertEqual(group(-1), .overdue)
+        XCTAssertEqual(group(1), .today)
+        // Three hours from 22:00 is already tomorrow's date, even though it's under a day away.
+        XCTAssertEqual(group(3), .tomorrow)
+        XCTAssertEqual(group(25), .tomorrow)
+        XCTAssertEqual(group(27), .thisWeek)
+        XCTAssertEqual(group(6 * 24), .thisWeek)
+        XCTAssertEqual(group(7 * 24), .later)
+    }
 }

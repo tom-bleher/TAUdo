@@ -87,6 +87,7 @@ struct WelcomeWindow: View {
 struct MenuBarLabel: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let label = model.menuLabel
@@ -98,6 +99,8 @@ struct MenuBarLabel: View {
         }
         // First launch: open the welcome window (the label is the one view that exists at launch).
         Color.clear.frame(width: 0, height: 0).onAppear {
+            // `--settings` opens the Settings window at launch (for checking its layout).
+            if CommandLine.arguments.contains("--settings") { NSApp.activate(ignoringOtherApps: true); openSettings() }
             guard !model.data.onboarded, !CommandLine.arguments.contains("--snapshot") else { return }
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: "welcome")

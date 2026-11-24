@@ -6,24 +6,31 @@ struct CourseCard: View {
     let ci: Int
 
     private let cube: CGFloat = 12, gap: CGFloat = 3
+    /// Cubes per line: a semester of two sessions a week. Longer rows wrap.
+    private let perLine = 26
 
     var body: some View {
         let course = model.data.courses[ci]
         let (done, total) = Pacing.completion(course)
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Circle().fill(Palette.course(ci)).frame(width: 7, height: 7)
+                Circle().fill(Palette.course(ci)).frame(width: 8, height: 8)
                 Text(course.name).font(.callout.weight(.semibold)).lineLimit(1)
-                if course.pace == .selfStudy { Text("self-study").font(.caption).foregroundStyle(.secondary) }
-                Spacer()
+                if course.pace == .selfStudy { Tag(text: Text("self-study")) }
+                Spacer(minLength: 8)
                 lead(course)
                 Text(verbatim: "\(total == 0 ? 0 : 100 * done / total)%").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             .contextMenu {
                 if let folder = model.data.folder(for: course) { Button("Open course folder") { NSWorkspace.shared.open(folder) } }
             }
-            ForEach(course.tracks.indices, id: \.self) { ti in row(course, ti) }
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(course.tracks.indices, id: \.self) { ti in row(course, ti) }
+            }
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     /// How far ahead of (or behind) the class you are in the course's first row (usually lectures).
@@ -32,9 +39,7 @@ struct CourseCard: View {
             let classPos = Pacing.classPosition(t, links: links(course, t), settings: model.data.settings, now: model.now)
             let lead = Pacing.yourPosition(t) - classPos
             if lead != 0 {
-                Text(verbatim: lead > 0 ? "+\(lead)" : "−\(-lead)")
-                    .font(.caption.monospacedDigit().weight(.medium))
-                    .foregroundStyle(lead > 0 ? Palette.cell(.done) : .orange)
+                Tag(text: Text(verbatim: lead > 0 ? "+\(lead)" : "−\(-lead)").monospacedDigit(), color: lead > 0 ? Palette.cell(.done) : .orange)
                     .help(lead > 0 ? Text("\(lead) ahead of the class") : Text("\(-lead) behind the class"))
             }
         }
@@ -48,20 +53,25 @@ struct CourseCard: View {
         let t = course.tracks[ti]
         let links = links(course, t)
         let classPos = Pacing.classPosition(t, links: links, settings: model.data.settings, now: model.now)
-        return HStack(spacing: 8) {
-            Text(t.shortName).font(.caption2).foregroundStyle(.secondary).frame(width: 30, alignment: .leading)
+        let lines = stride(from: 0, to: t.count, by: perLine).map { $0..<min($0 + perLine, t.count) }
+        return HStack(alignment: .top, spacing: 6) {
+            Text(t.shortName).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                .frame(width: 28, height: cube, alignment: .leading)
                 .help(t.name)
-            HStack(spacing: gap) {
-                ForEach(t.cells.indices, id: \.self) { i in
-                    cell(t, ti, i, classPos: classPos, link: links[i])
-                    // The class marker sits in the gap after the last session the class has held.
-                    // It takes no space (negative padding cancels the extra gap), so columns stay aligned.
-                    if i == classPos - 1 && classPos < t.count {
-                        Color.clear.frame(width: 0, height: cube)
-                            .overlay(Capsule().fill(Color.accentColor).frame(width: 2, height: cube + 4))
-                            .padding(.horizontal, -gap / 2)
-                            .help(Text("The class is here"))
-                            .allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: gap) {
+                ForEach(lines, id: \.lowerBound) { line in
+                    HStack(spacing: gap) {
+                        ForEach(line, id: \.self) { i in
+                            cell(t, ti, i, classPos: classPos, link: links[i])
+                            // The class marker sits in the gap after the last session the class has held.
+                            // It takes no space (negative padding cancels the extra gap), so columns stay aligned.
+                            if i == classPos - 1 && classPos < t.count {
+                                Color.clear.frame(width: 0, height: cube)
+                                    .overlay(Capsule().fill(Color.accentColor).frame(width: 2, height: cube + 4))
+                                    .padding(.horizontal, -gap / 2)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                     }
                 }
             }
@@ -80,11 +90,7 @@ struct CourseCard: View {
         if let link { tip += "\n" + String(localized: "Due \(link.due.medium())") }
         if i < classPos { tip += "\n" + String(localized: "The class has covered this") }
         if let f = files.first { tip += "\n" + String(localized: "⌘-click: open \(f.lastPathComponent)") }
-        return RoundedRectangle(cornerRadius: 3)
-            .fill(Palette.cell(state))
-            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(stroke, lineWidth: 1.5))
-            .frame(width: cube, height: cube)
-            .contentShape(Rectangle())
+        return Cube(fill: Palette.cell(state), stroke: stroke, size: cube)
             .help(tip)
             .accessibilityElement()
             .accessibilityLabel(tip)
@@ -108,5 +114,26 @@ struct CourseCard: View {
                 Button("The class is here") { model.setClassPosition(ci, ti, to: i + 1) }
                 if let u = link?.url.flatMap(URL.init(string:)) { Button("Open in Moodle") { NSWorkspace.shared.open(u) } }
             }
+    }
+}
+
+/// One cube. Lifts slightly under the pointer so it reads as clickable.
+private struct Cube: View {
+    let fill: Color
+    let stroke: Color
+    let size: CGFloat
+    @State private var hover = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+        shape.fill(fill)
+            .overlay(shape.fill(Color.primary.opacity(hover ? 0.16 : 0)))
+            .overlay(shape.strokeBorder(stroke, lineWidth: 1.5))
+            .frame(width: size, height: size)
+            .scaleEffect(hover ? 1.25 : 1)
+            .animation(.easeOut(duration: 0.1), value: hover)
+            .animation(.easeOut(duration: 0.15), value: fill)
+            .contentShape(Rectangle())
+            .onHover { hover = $0 }
     }
 }

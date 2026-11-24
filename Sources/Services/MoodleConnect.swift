@@ -213,27 +213,32 @@ enum MoodleConnect {
 
     /// Writes a small page with the draggable bookmark and opens it in the default browser.
     static func openBookmarkletPage(key: String) {
+        let style = """
+        <style>:root{color-scheme:light dark}
+        body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1.25rem;color:#1d1d1f;background:#fff}
+        h1{font-size:1.6rem;margin:0 0 1.25rem}p{color:#424245}ol{padding-inline-start:1.2rem}li{margin:.4rem 0}
+        .drag{display:flex;align-items:center;gap:1rem;padding:1.25rem;border:2px dashed #b8c2d6;border-radius:14px;margin-bottom:1.5rem}
+        .drag span{color:#6e6e73;font-size:.9rem}
+        a.bm{flex:none;padding:.6rem 1.1rem;border-radius:10px;background:#0d2b5c;color:#fff;text-decoration:none;font-weight:600;cursor:grab}
+        @media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}p{color:#c7c7cc}.drag{border-color:#48526a}.drag span{color:#98989d}a.bm{background:#3b6fd4}}
+        </style>
+        """
+        let link = bookmarkletURL(key: key)
         let html = Lang.isHebrew ? """
-        <!doctype html><html dir="rtl" lang="he"><meta charset="utf-8"><title>סימניית הסנכרון של TAUdo</title>
-        <style>body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1rem;color:#1d1d1f}
-        a.bm{display:inline-block;padding:.6rem 1.1rem;border-radius:10px;background:#0d2b5c;color:#fff;text-decoration:none;font-weight:600}
-        ol{padding-right:1.2rem}li{margin:.4rem 0}</style>
+        <!doctype html><html dir="rtl" lang="he"><meta charset="utf-8"><title>סימניית הסנכרון של TAUdo</title>\(style)
         <h1>סימניית הסנכרון של TAUdo</h1>
-        <p><a class="bm" href="\(bookmarkletURL(key: key))">סנכרון TAUdo</a></p>
-        <ol><li>גררו את הכפתור לסרגל הסימניות (⇧⌘B מציג אותו אם הוא מוסתר).</li>
+        <div class="drag"><a class="bm" href="\(link)">סנכרון TAUdo</a><span>גררו את הכפתור לסרגל הסימניות שבראש החלון</span></div>
+        <ol><li>גררו את הכפתור לסרגל הסימניות (<span dir="ltr">⇧⌘B</span> מציג אותו אם הוא מוסתר).</li>
         <li>פתחו את Moodle והתחברו.</li>
         <li>לחצו על <b>סנכרון TAUdo</b> ואשרו לדפדפן לפתוח את TAUdo.</li></ol>
         <p>הסימנייה קשורה ל־TAUdo שבמחשב הזה, כך שדפים אחרים לא יכולים לשלוח לו נתונים. אל תשתפו אותה.</p>
         <p>TAUdo מקבל את קישור היומן ולומד אילו מטלות כבר הגשתם. אפשר ללחוץ שוב בכל עת כדי לעדכן הגשות; מועדי ההגשה מתעדכנים מעצמם.</p>
         <p><b>הורדת חומרי קורס:</b> לחיצה על הסימנייה בדף של קורס מציעה להוריד את כל הקבצים שלו. TAUdo מסדר אותם בתיקיית הקורס, לפי נושאים. ייתכן שהדפדפן יבקש אישור להורדת כמה קבצים.</p>
         """ : """
-        <!doctype html><meta charset="utf-8"><title>TAUdo sync bookmark</title>
-        <style>body{font:16px/1.5 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1rem;color:#1d1d1f}
-        a.bm{display:inline-block;padding:.6rem 1.1rem;border-radius:10px;background:#0d2b5c;color:#fff;text-decoration:none;font-weight:600}
-        ol{padding-left:1.2rem}li{margin:.4rem 0}</style>
+        <!doctype html><html lang="en"><meta charset="utf-8"><title>TAUdo sync bookmark</title>\(style)
         <h1>TAUdo sync bookmark</h1>
-        <p><a class="bm" href="\(bookmarkletURL(key: key))">TAUdo sync</a></p>
-        <ol><li>Drag the button above onto your bookmarks bar. Show the bar with ⇧⌘B if it's hidden.</li>
+        <div class="drag"><a class="bm" href="\(link)">TAUdo sync</a><span>Drag this button onto the bookmarks bar at the top of the window</span></div>
+        <ol><li>Drag the button onto your bookmarks bar. Show the bar with ⇧⌘B if it's hidden.</li>
         <li>Open Moodle and log in.</li>
         <li>Click <b>TAUdo sync</b>. Allow the browser to open TAUdo.</li></ol>
         <p>The bookmark is tied to this Mac's TAUdo, so other pages can't send it data. Don't share it.</p>

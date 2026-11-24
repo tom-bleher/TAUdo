@@ -17,6 +17,8 @@ enum Lang {
         // Snapshot runs pass -AppleLanguages on the command line; don't persist that into your preferences.
         guard !CommandLine.arguments.contains("--snapshot") else { return }
         UserDefaults.standard.set([code], forKey: "AppleLanguages")
+        // Window chrome (toolbar tab order, window buttons) follows the system's direction, not the app's language: pin it too.
+        for key in ["AppleTextDirection", "NSForceRightToLeftWritingDirection"] { UserDefaults.standard.set(isHebrew, forKey: key) }
     }
 
     static func set(_ new: String) {
@@ -24,6 +26,12 @@ enum Lang {
         UserDefaults.standard.set(new, forKey: key)
         apply()
         relaunch()
+    }
+
+    /// Joins short pieces of text with " · ", keeping each piece intact and the pieces in the UI's reading order
+    /// when Hebrew and Latin text are mixed (a Hebrew course name next to an English date, say).
+    static func joined(_ parts: String...) -> String {
+        (isHebrew ? "\u{200F}" : "\u{200E}") + parts.map { "\u{2068}\($0)\u{2069}" }.joined(separator: " · ")
     }
 
     private static func relaunch() {
@@ -47,5 +55,16 @@ extension Date {
 
     func medium() -> String {
         formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Lang.locale))
+    }
+
+    /// When a deadline falls, as short as its section allows: the time alone today and tomorrow,
+    /// the weekday within a week, otherwise the date.
+    func dueLabel(_ group: DueGroup) -> String {
+        let f = Date.FormatStyle(locale: Lang.locale)
+        switch group {
+        case .today, .tomorrow: return formatted(f.hour().minute())
+        case .thisWeek: return formatted(f.weekday(.wide).hour().minute())
+        case .overdue, .later: return formatted(f.day().month(.abbreviated).hour().minute())
+        }
     }
 }

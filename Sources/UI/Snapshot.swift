@@ -14,11 +14,14 @@ enum Snapshot {
         defer { UserDefaults.standard.set(savedTab, forKey: "panelTab") }
         for tab in [PanelView.Tab.due, .courses] {
             UserDefaults.standard.set(tab.rawValue, forKey: "panelTab")
-            render(PanelView(), model: model, width: 460, to: dir.appendingPathComponent("panel-\(tab.rawValue)\(suffix).png"), dark: dark)
+            render(PanelView(), model: model, width: PanelView.width, to: dir.appendingPathComponent("panel-\(tab.rawValue)\(suffix).png"), dark: dark)
         }
-        render(GeneralSettings(), model: model, width: 560, height: 900, to: dir.appendingPathComponent("settings-general\(suffix).png"), dark: dark)
-        render(CoursesSettings(), model: model, width: 560, height: 900, to: dir.appendingPathComponent("settings-courses\(suffix).png"), dark: dark)
-        render(ExamsSettings(), model: model, width: 560, height: 300, to: dir.appendingPathComponent("settings-exams\(suffix).png"), dark: dark)
+        let w = SettingsView.width
+        render(GeneralSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-general\(suffix).png"), dark: dark)
+        render(MoodleSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-moodle\(suffix).png"), dark: dark)
+        render(NotificationSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-notifications\(suffix).png"), dark: dark)
+        render(CoursesSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-courses\(suffix).png"), dark: dark)
+        render(ExamsSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-exams\(suffix).png"), dark: dark)
         render(WelcomeView(onDone: {}), model: model, width: 520, to: dir.appendingPathComponent("welcome\(suffix).png"), dark: dark)
         UserDefaults.standard.set(savedTab, forKey: "panelTab")
         NSApp.terminate(nil)

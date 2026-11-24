@@ -18,22 +18,6 @@
 			<string>%1$lld קורסים במעקב.</string>
 		</dict>
 	</dict>
-	<key>%lld items</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%1$#@v@</string>
-		<key>v</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>lld</string>
-			<key>one</key>
-			<string>פריט אחד</string>
-			<key>other</key>
-			<string>%1$lld פריטים</string>
-		</dict>
-	</dict>
 	<key>%lld new deadlines on Moodle</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
