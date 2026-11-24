@@ -16,6 +16,15 @@ enum MoodleConnect {
         var pendingIDs: [Int]
         /// Course shortname → full name, from Moodle's calendar.
         var courses: [String: String]?
+        /// Set when the bookmark was clicked on a course page and you chose to download its files.
+        var download: Download?
+
+        struct Download: Decodable {
+            var courseID: Int
+            var name: String
+            var sections: [String: String]?
+            var count: Int
+        }
 
         var submittedIDs: Set<Int> { Set(assignIDs).subtracting(pendingIDs) }
     }
@@ -46,9 +55,18 @@ enum MoodleConnect {
             try? await Task.sleep(for: .seconds(1))
             guard pb.changeCount != seen else { continue }
             seen = pb.changeCount
+            // Only read the clipboard when it holds a web link, so copied passwords are never read.
+            guard await isWebLink(pb) else { continue }
             if let s = pb.string(forType: .string), s.contains("export_execute.php"), let link = exportLink(s, host: host) { return link }
         }
         return nil
+    }
+
+    /// Asks macOS whether the clipboard holds a URL without reading it (macOS 15.4+), so copied passwords are
+    /// never read and no clipboard-privacy prompt appears. Older systems have no such prompt: read as before.
+    private static func isWebLink(_ pb: NSPasteboard) async -> Bool {
+        guard #available(macOS 15.4, *) else { return true }
+        return (try? await pb.detectedPatterns(for: [\.probableWebURL]).contains(\.probableWebURL)) ?? false
     }
 
     /// The bookmarklet: runs in a signed-in Moodle tab, submits Moodle's own export form for the link,
@@ -57,7 +75,7 @@ enum MoodleConnect {
     (async () => {
       const M = window.M;
       if (!M || !M.cfg || !M.cfg.sesskey || !document.querySelector('a[href*="/login/logout.php"]')) {
-        alert("TAUdo: open Moodle and log in first, then click this bookmark again."); return;
+        alert(__LOGIN__); return;
       }
       const base = M.cfg.wwwroot.replace(/\/+$/, ""), sesskey = M.cfg.sesskey;
       const from = Math.floor(Date.now() / 1000) - 150 * 86400;
@@ -99,19 +117,116 @@ enum MoodleConnect {
           }
         }
       } catch (e) {}
-      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({key: "__KEY__", base, exportURL, assignIDs, pendingIDs, courses}));
+      let download = null;
+      const cid = Number(M.cfg.courseId || 0);
+      if (/\/course\/view\.php$/.test(location.pathname) && cid > 1 && confirm(__ASK__)) {
+        const box = document.createElement("div");
+        box.style.cssText = "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0d2b5c;color:#fff;padding:10px 16px;border-radius:10px;font:14px system-ui;box-shadow:0 8px 24px rgba(0,0,0,.3)";
+        document.body.appendChild(box);
+        const say = t => { box.textContent = "TAUdo: " + t; };
+        const save = (blob, name) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "TAUdo__" + cid + "__" + name.replace(/[\/\\:]/g, "-");
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 120000);
+        };
+        const name = ((document.querySelector(".page-header-headings h1") || document.querySelector("h1") || {}).textContent || document.title).trim();
+        const sections = {};
+        let count = 0;
+        const whole = document.querySelector('[data-downloadcourse], a[href*="/course/downloadcontent.php"]');
+        if (whole && M.cfg.courseContextId) {
+          say("…");
+          try {
+            const fd = new FormData(); fd.append("sesskey", sesskey);
+            const r = await fetch(base + "/course/downloadcontent.php?contextid=" + M.cfg.courseContextId + "&download=1", {method: "POST", body: fd, credentials: "include"});
+            if (r.ok && !/text\/html/.test(r.headers.get("content-type") || "")) { save(await r.blob(), "all__course.zip"); count = 1; }
+          } catch (e) {}
+        }
+        if (!count) {
+          const items = [];
+          try {
+            const [st] = await ajax([["core_courseformat_get_state", {courseid: cid}]]);
+            if (st && !st.error) {
+              const state = JSON.parse(st.data);
+              const secs = {};
+              for (const sec of state.section || []) { secs[sec.id] = sec.number; sections[sec.number] = sec.title || ""; }
+              for (const cm of state.cm || []) {
+                if (!cm.uservisible) continue;
+                const n = secs[cm.sectionid] ?? cm.sectionnumber ?? 0;
+                if (cm.module === "resource") items.push({u: base + "/mod/resource/view.php?id=" + cm.id + "&redirect=1", s: n});
+                if (cm.module === "folder") items.push({u: base + "/mod/folder/download_folder.php?id=" + cm.id, s: n, zip: cm.name});
+              }
+            }
+          } catch (e) {}
+          if (!items.length) {
+            document.querySelectorAll('li[data-for="cmitem"].modtype_resource, li[data-for="cmitem"].modtype_folder').forEach(li => {
+              const sec = li.closest('[data-for="section"]'); const n = sec ? Number(sec.dataset.number || 0) : 0;
+              const id = li.dataset.id; if (!id) return;
+              if (li.classList.contains("modtype_resource")) items.push({u: base + "/mod/resource/view.php?id=" + id + "&redirect=1", s: n});
+              else items.push({u: base + "/mod/folder/download_folder.php?id=" + id, s: n, zip: (li.querySelector("[data-activityname]") || {}).dataset?.activityname || "folder"});
+            });
+          }
+          document.querySelectorAll('[data-for="section"]').forEach(sec => {
+            const n = Number(sec.dataset.number || 0);
+            if (sections[n] === undefined) sections[n] = ((sec.querySelector(".sectionname") || {}).textContent || "").trim();
+          });
+          document.querySelectorAll('a[href*="/pluginfile.php/"]').forEach(a => {
+            const sec = a.closest('[data-for="section"]');
+            items.push({u: a.href, s: sec ? Number(sec.dataset.number || 0) : 0});
+          });
+          const seen = new Set(), todo = items.filter(i => !seen.has(i.u) && seen.add(i.u));
+          let done = 0, next = 0;
+          const worker = async () => {
+            while (next < todo.length) {
+              const it = todo[next++];
+              try {
+                const r = await fetch(it.u, {credentials: "include"});
+                const ct = r.headers.get("content-type") || "";
+                if (r.ok && !/text\/html/.test(ct)) {
+                  const file = it.zip ? it.zip + ".zip" : decodeURIComponent(new URL(r.url).pathname.split("/").pop() || "file");
+                  save(await r.blob(), it.s + "__" + file); count++;
+                }
+              } catch (e) {}
+              say(++done + "/" + todo.length);
+            }
+          };
+          await Promise.all([worker(), worker(), worker()]);
+        }
+        say(count ? "✓ " + count : "0");
+        setTimeout(() => box.remove(), 4000);
+        download = {courseID: cid, name, sections, count};
+      }
+      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({key: "__KEY__", base, exportURL, assignIDs, pendingIDs, courses, download}));
     })();
     """#
 
     static func bookmarkletURL(key: String) -> String {
-        let code = bookmarkletSource.replacingOccurrences(of: "__KEY__", with: key).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        let ask = String(localized: "TAUdo: download all files from this course to your course folder?")
+        let login = String(localized: "TAUdo: open Moodle and log in first, then click this bookmark again.")
+        let js = { (s: String) in (try? String(data: JSONEncoder().encode(s), encoding: .utf8)) ?? "\"\"" }
+        let code = bookmarkletSource.replacingOccurrences(of: "__KEY__", with: key)
+            .replacingOccurrences(of: "__ASK__", with: js(ask)).replacingOccurrences(of: "__LOGIN__", with: js(login)).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-_.!~*'()")
         return "javascript:" + code.addingPercentEncoding(withAllowedCharacters: allowed)!
     }
 
     /// Writes a small page with the draggable bookmark and opens it in the default browser.
     static func openBookmarkletPage(key: String) {
-        let html = """
+        let html = Lang.isHebrew ? """
+        <!doctype html><html dir="rtl" lang="he"><meta charset="utf-8"><title>סימניית הסנכרון של TAUdo</title>
+        <style>body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1rem;color:#1d1d1f}
+        a.bm{display:inline-block;padding:.6rem 1.1rem;border-radius:10px;background:#0d2b5c;color:#fff;text-decoration:none;font-weight:600}
+        ol{padding-right:1.2rem}li{margin:.4rem 0}</style>
+        <h1>סימניית הסנכרון של TAUdo</h1>
+        <p><a class="bm" href="\(bookmarkletURL(key: key))">סנכרון TAUdo</a></p>
+        <ol><li>גררו את הכפתור לסרגל הסימניות (⇧⌘B מציג אותו אם הוא מוסתר).</li>
+        <li>פתחו את Moodle והתחברו.</li>
+        <li>לחצו על <b>סנכרון TAUdo</b> ואשרו לדפדפן לפתוח את TAUdo.</li></ol>
+        <p>הסימנייה קשורה ל־TAUdo שבמחשב הזה, כך שדפים אחרים לא יכולים לשלוח לו נתונים. אל תשתפו אותה.</p>
+        <p>TAUdo מקבל את קישור היומן ולומד אילו מטלות כבר הגשתם. אפשר ללחוץ שוב בכל עת כדי לעדכן הגשות; מועדי ההגשה מתעדכנים מעצמם.</p>
+        <p><b>הורדת חומרי קורס:</b> לחיצה על הסימנייה בדף של קורס מציעה להוריד את כל הקבצים שלו. TAUdo מסדר אותם בתיקיית הקורס, לפי נושאים. ייתכן שהדפדפן יבקש אישור להורדת כמה קבצים.</p>
+        """ : """
         <!doctype html><meta charset="utf-8"><title>TAUdo sync bookmark</title>
         <style>body{font:16px/1.5 -apple-system,system-ui,sans-serif;max-width:560px;margin:4rem auto;padding:0 1rem;color:#1d1d1f}
         a.bm{display:inline-block;padding:.6rem 1.1rem;border-radius:10px;background:#0d2b5c;color:#fff;text-decoration:none;font-weight:600}
@@ -123,6 +238,7 @@ enum MoodleConnect {
         <li>Click <b>TAUdo sync</b>. Allow the browser to open TAUdo.</li></ol>
         <p>The bookmark is tied to this Mac's TAUdo, so other pages can't send it data. Don't share it.</p>
         <p>TAUdo then gets your calendar link and learns which assignments you've submitted. Click it again any time to update submissions; deadlines refresh on their own.</p>
+        <p><b>Course materials:</b> click the bookmark on a course page to download all its files. TAUdo files them into the course folder, by section. Your browser may ask to allow multiple downloads.</p>
         """
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("TAUdo", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

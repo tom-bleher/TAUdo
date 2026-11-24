@@ -16,6 +16,10 @@ final class AppModel {
     var files: [UUID: CourseFiles] = [:]
     /// Set if the saved state couldn't be read at launch.
     var loadError: String?
+    /// While the panel is open the menu bar label is frozen: macOS closes a menu bar panel
+    /// when its status item changes size underneath it.
+    private(set) var panelOpen = false
+    private var frozenLabel = MenuLabel(overdue: 0, title: nil)
 
     private let calendar = CalendarSync()
     private var loop: Task<Void, Never>?
@@ -45,7 +49,7 @@ final class AppModel {
                 let backup = Self.fileURL.deletingLastPathComponent().appendingPathComponent("state.unreadable-\(stamp).json")
                 try? FileManager.default.copyItem(at: Self.fileURL, to: backup)
                 self.data = .initial
-                loadError = "Your saved data couldn't be read, so TAUdo started fresh. The old file is kept at \(backup.path)."
+                loadError = String(localized: "Your saved data couldn't be read, so TAUdo started fresh. The old file is kept at \(backup.path).")
                 save()
             }
         }
@@ -67,7 +71,8 @@ final class AppModel {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.now = .now; await self?.refresh() }
         }
-        if data.settings.notifications && !data.settings.calendarSync { Task { _ = await Notifier.requestAuthorization() } }
+        // New users are asked in the welcome window; existing ones at launch (asks only once).
+        if data.settings.notifications && data.onboarded { Task { _ = await Notifier.requestAuthorization() } }
         if !persist { Task { await scanFiles() } }
         push()
     }
@@ -96,7 +101,7 @@ final class AppModel {
             if !url.isEmpty {
                 do {
                     let events = try await MoodleFeed.fetch(url)
-                    data.mergeFeed(events, now: .now)
+                    announce(data.mergeFeed(events, now: .now))
                     data.lastSync = .now
                     feedError = nil
                 } catch {
@@ -105,6 +110,7 @@ final class AppModel {
             }
             await scanFiles()
             data.autoLinkCourses(files: files)
+            await organizeDownloads()
         } while refreshAgain
         now = .now
         push()
@@ -119,6 +125,25 @@ final class AppModel {
         if result != files { files = result }
     }
 
+    /// Alerts for deadlines Moodle just posted or moved.
+    private func announce(_ c: AppData.FeedChanges) {
+        guard data.settings.notifications, data.settings.alertChanges else { return }
+        let name = { (e: MoodleEvent) in self.data.courseIndex(for: e).map { self.data.courses[$0].name } ?? self.data.courseLabel(e.courseKey) }
+        if c.added.count > 3 {
+            Notifier.post(String(localized: "\(c.added.count) new deadlines on Moodle"),
+                          c.added.map { "• \(Classifier.cleanTitle($0.summary)) · \(name($0))" }.joined(separator: "\n"))
+        } else {
+            for e in c.added {
+                Notifier.post(String(localized: "New: \(Classifier.cleanTitle(e.summary))"),
+                              name(e) + " · " + String(localized: "Due \(e.due.medium())"), id: "new." + e.uid)
+            }
+        }
+        for m in c.moved {
+            Notifier.post(String(localized: "Moved: \(Classifier.cleanTitle(m.event.summary))"),
+                          name(m.event) + " · " + String(localized: "Now due \(m.event.due.medium()) (was \(m.from.medium()))"), id: "moved." + m.event.uid)
+        }
+    }
+
     /// Refreshes when opening the panel if the data is older than 10 minutes.
     func refreshIfStale() {
         if data.lastSync.map({ Date().timeIntervalSince($0) > 600 }) ?? true { Task { await refresh() } }
@@ -131,7 +156,7 @@ final class AppModel {
     func connect() {
         let base = data.settings.moodleBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if let url = URL(string: base + "/calendar/export.php") { NSWorkspace.shared.open(url) }
-        connectStatus = "In the browser: log in, choose All events + Custom range, click Get calendar URL, then copy the link."
+        connectStatus = String(localized: "In the browser: log in, choose All events and a custom range, click Get calendar URL, then copy the link.")
         connectTask?.cancel()
         connectTask = Task { [weak self] in
             guard let host = self?.moodleHost,
@@ -153,15 +178,71 @@ final class AppModel {
     /// taudo://sync from the bookmarklet.
     func handle(_ url: URL) {
         // Only accept data from this install's bookmark, for the configured Moodle site.
-        guard let p = MoodleConnect.payload(from: url), p.key == data.settings.syncKey,
-              URL(string: p.base)?.host == moodleHost else { return }
+        guard let p = MoodleConnect.payload(from: url), URL(string: p.base)?.host == moodleHost else { return }
+        guard p.key == data.settings.syncKey else {
+            Notifier.post(String(localized: "This TAUdo bookmark is out of date"),
+                          String(localized: "Install it again from the ⋯ menu › Install sync bookmark…"), id: "bookmark.stale")
+            return
+        }
         data.settings.moodleBaseURL = p.base
         data.moodleCourseNames.merge(p.courses ?? [:]) { _, new in new }
         data.autoLinkCourses(files: files)
         data.applySubmissions(p.submittedIDs)
         data.lastStatusCheck = .now
+        if let dl = p.download, dl.count > 0 {
+            data.downloads.removeAll { $0.courseID == dl.courseID }
+            data.downloads.append(DownloadManifest(courseID: dl.courseID, name: dl.name, sections: dl.sections ?? [:], count: dl.count))
+            watchDownloads()
+        }
         if let s = p.exportURL, let link = MoodleConnect.exportLink(s, host: moodleHost) { setExportLink(link) }
         else { push() }
+    }
+
+    // MARK: Course downloads
+
+    private var downloadWatch: Task<Void, Never>?
+
+    /// Files the bookmark's downloads as they land in ~/Downloads (checks every few seconds for 5 minutes).
+    func watchDownloads() {
+        downloadWatch?.cancel()
+        downloadWatch = Task { [weak self] in
+            for _ in 0..<100 {
+                guard let self, !Task.isCancelled else { return }
+                await self.organizeDownloads()
+                if self.data.downloads.isEmpty { return }
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+
+    /// Where a downloaded course goes: its tracked course's folder, else <coursework folder>/<course>,
+    /// else ~/Downloads/TAUdo/<course>.
+    func folder(for m: DownloadManifest) -> URL {
+        let course = data.course(matching: m.name).map { data.courses[$0] }
+        if let course, let f = data.folder(for: course) { return f }
+        let name = DownloadOrganizer.safe(course?.name ?? AppData.readableName(m.name))
+        let root = data.settings.courseworkFolder.isEmpty
+            ? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0].appendingPathComponent("TAUdo")
+            : URL(fileURLWithPath: (data.settings.courseworkFolder as NSString).expandingTildeInPath)
+        return root.appendingPathComponent(name, isDirectory: true)
+    }
+
+    func organizeDownloads() async {
+        guard !data.downloads.isEmpty else { return }
+        let jobs = data.downloads.map { ($0, folder(for: $0)) }
+        let moved = await Task.detached(priority: .utility) { DownloadMover.run(jobs) }.value
+        for (m, folder) in jobs {
+            let n = moved[m.courseID] ?? 0
+            guard n > 0, let i = data.downloads.firstIndex(where: { $0.courseID == m.courseID }) else { continue }
+            data.downloads[i].filed += n
+            let total = data.downloads[i].filed
+            // One notification per course download, updated as files arrive.
+            Notifier.post(String(localized: "Saved \(total) files from \(AppData.readableName(m.name))"),
+                          folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"), id: "dl.\(m.courseID)", open: folder)
+            if total >= data.downloads[i].count { data.downloads.remove(at: i) }
+        }
+        // Give up on downloads that never arrived.
+        data.downloads.removeAll { Date().timeIntervalSince($0.started) > 7 * 86400 }
     }
 
     /// Pushes current state to Apple Calendar and reminders. Debounced: clicking through cubes triggers one push.
@@ -185,15 +266,16 @@ final class AppModel {
             }
             // With calendar sync working, the calendar's alerts remind you (and reach your iPhone via iCloud).
             let calendarReminds = s.calendarSync && calendar.hasAccess
-            await Notifier.reschedule(deadlines, courseNames: Dictionary(uniqueKeysWithValues: data.courses.enumerated().map { ($0.offset, $0.element.name) }),
-                                      leadMinutes: s.reminderMinutes, enabled: s.notifications && !calendarReminds)
+            await Notifier.reschedule(.init(deadlines: deadlines, courseName: { [weak self] in self?.courseName($0) ?? "" },
+                                            leadMinutes: s.reminderMinutes, reminders: s.notifications && !calendarReminds,
+                                            digestHour: s.notifications ? s.digestHour : nil))
         }
     }
 
     private func syncCalendar(_ deadlines: [Deadline], alarms: Bool = true) async {
         do {
             if !calendar.hasAccess, !(try await calendar.requestAccess()) {
-                calendarStatus = "No calendar access. Allow TAUdo in System Settings › Privacy & Security › Calendars."
+                calendarStatus = String(localized: "No calendar access. Allow TAUdo in System Settings › Privacy & Security › Calendars.")
                 return
             }
             let cal = try calendar.calendar(id: data.settings.calendarID, name: data.settings.calendarName)
@@ -201,9 +283,9 @@ final class AppModel {
             var planned = plannedEvents(deadlines)
             if !alarms { for i in planned.indices { planned[i].alarms = [] } }
             let r = try calendar.sync(planned, into: cal)
-            calendarStatus = "Calendar “\(cal.title)” up to date" + (r.created + r.updated + r.deleted > 0 ? " (+\(r.created) ~\(r.updated) −\(r.deleted))" : "")
+            calendarStatus = String(localized: "Calendar “\(cal.title)” is up to date") + (r.created + r.updated + r.deleted > 0 ? " (+\(r.created) ~\(r.updated) −\(r.deleted))" : "")
         } catch {
-            calendarStatus = "Calendar sync failed: \(error.localizedDescription)"
+            calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)")
         }
     }
 
@@ -227,17 +309,35 @@ final class AppModel {
         }
     }
 
+    // MARK: Menu bar label
+
+    struct MenuLabel: Equatable { var overdue: Int; var title: String? }
+
+    var menuLabel: MenuLabel {
+        if panelOpen { return frozenLabel }
+        return MenuLabel(overdue: overdueCount, title: data.settings.menuBarShowsNext ? next.map(menuTitle) : nil)
+    }
+
+    func panelDidOpen() { frozenLabel = menuLabel; panelOpen = true }
+    func panelDidClose() { panelOpen = false }
+
     // MARK: Derived
 
     var deadlines: [Deadline] { data.deadlines() }
 
-    /// Open deadlines: everything not done that is upcoming or at most a week overdue.
+    /// Not done and missed within the last week.
+    var overdue: [Deadline] {
+        deadlines.filter { !$0.isDone && $0.due < now && $0.due > now.addingTimeInterval(-7 * 86400) }
+    }
+
+    /// Open deadlines shown in the panel: upcoming ones, plus overdue ones if you chose to see them.
     var open: [Deadline] {
-        deadlines.filter { !$0.isDone && $0.due > now.addingTimeInterval(-7 * 86400) }
+        (data.settings.showOverdue ? overdue : []) + deadlines.filter { !$0.isDone && $0.due >= now }
     }
 
     var next: Deadline? { open.first { $0.due >= now } }
-    var overdueCount: Int { open.filter { $0.due < now }.count }
+    /// Shown in the menu bar only when overdue deadlines are shown.
+    var overdueCount: Int { data.settings.showOverdue ? overdue.count : 0 }
 
     func courseName(_ d: Deadline) -> String {
         d.courseIndex.map { data.courses[$0].name } ?? data.courseLabel(d.event.courseKey)
@@ -248,6 +348,19 @@ final class AppModel {
         Set(deadlines.filter { $0.courseIndex == nil && !$0.isManual }.compactMap(\.event.courseKey)).sorted()
     }
 
+    func addCourse(fromMoodle key: String) {
+        data.addCourse(fromMoodle: key)
+        push()
+    }
+
+    /// "Not my course": its deadlines stop showing (undo in Settings › Courses).
+    func ignore(moodleCourse key: String) {
+        data.ignoredCourseKeys.insert(key)
+        push()
+    }
+
+    func finishOnboarding() { data.onboarded = true }
+
     func link(_ key: String, to courseID: UUID) {
         guard let i = data.courses.firstIndex(where: { $0.id == courseID }) else { return }
         data.courses[i].moodleKey = key
@@ -257,16 +370,16 @@ final class AppModel {
     /// e.g. "Calculus HW 4 · 2d"
     func menuTitle(_ d: Deadline) -> String {
         let course = courseName(d).split(separator: " ").first.map(String.init) ?? ""
-        let what = d.isExam ? "Exam" : Classifier.assignmentNumber(d.event.summary).map { "HW \($0)" } ?? String(d.title.prefix(14))
+        let what = d.isExam ? String(localized: "Exam") : Classifier.assignmentNumber(d.event.summary).map { String(localized: "HW \($0)") } ?? String(d.title.prefix(14))
         return [course, what].filter { !$0.isEmpty }.joined(separator: " ") + " · " + Self.remaining(d.due, now: now)
     }
 
     static func remaining(_ due: Date, now: Date) -> String {
         let s = due.timeIntervalSince(now)
-        if s < 0 { return "overdue" }
-        if s < 3600 { return "\(max(1, Int(s / 60)))m" }
-        if s < 86400 { return "\(Int(s / 3600))h" }
-        return "\(Int(s / 86400))d"
+        if s < 0 { return String(localized: "overdue") }
+        if s < 3600 { return String(localized: "\(max(1, Int(s / 60)))m", comment: "minutes left") }
+        if s < 86400 { return String(localized: "\(Int(s / 3600))h", comment: "hours left") }
+        return String(localized: "\(Int(s / 86400))d", comment: "days left")
     }
 
     // MARK: Actions

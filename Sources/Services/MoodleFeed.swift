@@ -8,10 +8,10 @@ enum MoodleFeed {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "^webcal://", with: "https://", options: [.regularExpression, .caseInsensitive])
         guard var c = URLComponents(string: s), c.scheme == "https", c.host != nil,
               c.path.hasSuffix("/calendar/export_execute.php") else {
-            throw FeedError(errorDescription: "Not a Moodle calendar export link (…/calendar/export_execute.php).")
+            throw FeedError(errorDescription: String(localized: "Not a Moodle calendar export link (…/calendar/export_execute.php)."))
         }
         var items = c.queryItems ?? []
-        guard items.contains(where: { $0.name == "authtoken" }) else { throw FeedError(errorDescription: "The export link is missing its authtoken.") }
+        guard items.contains(where: { $0.name == "authtoken" }) else { throw FeedError(errorDescription: String(localized: "The export link is incomplete (no authtoken).")) }
         if !items.contains(where: { $0.name == "preset_what" }) { items.append(.init(name: "preset_what", value: "all")) }
         if !items.contains(where: { $0.name == "preset_time" }) { items.append(.init(name: "preset_time", value: "custom")) }
         c.queryItems = items
@@ -23,14 +23,14 @@ enum MoodleFeed {
         req.setValue("text/calendar", forHTTPHeaderField: "Accept")
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let h = resp as? HTTPURLResponse, h.statusCode != 200 {
-            throw FeedError(errorDescription: "Moodle returned HTTP \(h.statusCode). The academic year may have changed — reconnect Moodle.")
+            throw FeedError(errorDescription: String(localized: "Moodle returned HTTP \(h.statusCode). The academic year may have changed: reconnect Moodle."))
         }
         let text = String(decoding: data, as: UTF8.self)
         if text.range(of: "invalid authentication", options: .caseInsensitive) != nil {
-            throw FeedError(errorDescription: "Moodle rejected the export token. Reconnect Moodle to get a fresh link.")
+            throw FeedError(errorDescription: String(localized: "Moodle rejected the calendar link. Reconnect Moodle to get a new one."))
         }
         guard text.contains("BEGIN:VCALENDAR") else {
-            throw FeedError(errorDescription: "Moodle didn't return a calendar (got a web page instead). Reconnect Moodle.")
+            throw FeedError(errorDescription: String(localized: "Moodle returned a web page instead of a calendar. Reconnect Moodle."))
         }
         return ICS.parse(text)
     }
