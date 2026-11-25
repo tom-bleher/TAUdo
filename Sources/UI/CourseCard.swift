@@ -98,7 +98,7 @@ struct CourseCard: View {
         if i < classPos { tip += "\n" + String(localized: "The class has covered this") }
         if !recordings.isEmpty { tip += "\n" + String(localized: "⌘-click: watch in Panopto") }
         else if let f = files.first { tip += "\n" + String(localized: "⌘-click: open \(f.lastPathComponent)") }
-        return Cube(fill: Palette.cell(state), stroke: stroke, size: cube)
+        return Cube(number: i + 1, state: state, stroke: stroke, size: cube)
             .help(tip)
             .accessibilityElement()
             .accessibilityLabel(tip)
@@ -132,17 +132,22 @@ struct CourseCard: View {
     }
 }
 
-/// One cube. Lifts slightly under the pointer so it reads as clickable.
+/// One cube, numbered so you can tell which session it is. Lifts slightly under the pointer so it reads as clickable.
 private struct Cube: View {
-    let fill: Color
+    let number: Int
+    let state: CellState
     let stroke: Color
     let size: CGFloat
     @State private var hover = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+        let fill = Palette.cell(state)
         shape.fill(fill)
             .overlay(shape.fill(Color.primary.opacity(hover ? 0.16 : 0)))
+            .overlay(Text(verbatim: "\(number)").font(.system(size: 7, weight: .semibold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(state == .empty || state == .skipped ? Color.secondary.opacity(0.8) : .white.opacity(0.9))
+                .fixedSize())
             .overlay(shape.strokeBorder(stroke, lineWidth: 1.5))
             .frame(width: size, height: size)
             .scaleEffect(hover ? 1.25 : 1)
