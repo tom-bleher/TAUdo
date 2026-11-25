@@ -79,6 +79,12 @@ extension AppData {
         return (moodle + own).sorted { $0.due < $1.due }
     }
 
+    /// What the Deadlines tab and the menu bar list: exams have their own tab unless you want them here too.
+    /// (Reminders and the calendar include exams either way.)
+    func dueDeadlines() -> [Deadline] {
+        settings.examsWithDeadlines ? deadlines() : deadlines().filter { !$0.isExam }
+    }
+
     /// Applies Moodle "submitted" reports: marks newly submitted deadlines done, never undoes anything.
     /// Each deadline is applied once, so unticking one by hand sticks.
     mutating func applySubmissions(_ ids: Set<Int>) {

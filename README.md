@@ -23,7 +23,7 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/panel-courses-he-dark.png">
-    <img src="assets/screenshots/panel-courses-he.png" width="420" alt="The Courses tab">
+    <img src="assets/screenshots/panel-courses-he.png" width="420" alt="The Progress tab">
   </picture>
 </p>
 

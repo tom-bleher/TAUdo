@@ -391,21 +391,26 @@ final class AppModel {
 
     var deadlines: [Deadline] { data.deadlines() }
 
+    private var due: [Deadline] { data.dueDeadlines() }
+
+    /// Upcoming exams, for the Exams tab.
+    var exams: [Deadline] { deadlines.filter { $0.isExam && $0.due >= now } }
+
     /// Not done and missed within the last week.
     var overdue: [Deadline] {
-        deadlines.filter { !$0.isDone && $0.due < now && $0.due > now.addingTimeInterval(-7 * 86400) }
+        due.filter { !$0.isDone && $0.due < now && $0.due > now.addingTimeInterval(-7 * 86400) }
     }
 
     /// Open deadlines shown in the panel: upcoming ones, plus overdue ones if you chose to see them.
     var open: [Deadline] {
-        (data.settings.showOverdue ? overdue : []) + deadlines.filter { !$0.isDone && $0.due >= now }
+        (data.settings.showOverdue ? overdue : []) + due.filter { !$0.isDone && $0.due >= now }
     }
 
     var next: Deadline? { open.first { $0.due >= now } }
 
     /// Ticked deadlines that are still current (due within the last week or later), so a tick can be undone.
     var completed: [Deadline] {
-        deadlines.filter { $0.isDone && $0.due > now.addingTimeInterval(-7 * 86400) }
+        due.filter { $0.isDone && $0.due > now.addingTimeInterval(-7 * 86400) }
     }
     /// Shown in the menu bar only when overdue deadlines are shown.
     var overdueCount: Int { data.settings.showOverdue ? overdue.count : 0 }

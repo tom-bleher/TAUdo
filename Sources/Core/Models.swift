@@ -177,6 +177,8 @@ struct Settings: Codable, Hashable, Sendable {
     var notificationSound: Bool = true
     /// Lets courses be studied at your own pace instead of with the class (off: every course follows the class).
     var selfStudy: Bool = false
+    /// List exams under Deadlines and in the menu bar too, not only in their own tab.
+    var examsWithDeadlines: Bool = false
 
     init() {}
 
@@ -211,6 +213,7 @@ struct Settings: Codable, Hashable, Sendable {
         notificationSound = try c.decodeIfPresent(Bool.self, forKey: .notificationSound) ?? z.notificationSound
         showOverdue = try c.decodeIfPresent(Bool.self, forKey: .showOverdue) ?? z.showOverdue
         selfStudy = try c.decodeIfPresent(Bool.self, forKey: .selfStudy) ?? z.selfStudy
+        examsWithDeadlines = try c.decodeIfPresent(Bool.self, forKey: .examsWithDeadlines) ?? z.examsWithDeadlines
         courseworkFolder = try c.decodeIfPresent(String.self, forKey: .courseworkFolder) ?? z.courseworkFolder
         syncKey = try c.decodeIfPresent(String.self, forKey: .syncKey) ?? z.syncKey
     }

@@ -13,12 +13,12 @@ enum Snapshot {
         let suffix = "-\(Lang.code)" + (dark ? "-dark" : "")
         let savedTab = UserDefaults.standard.string(forKey: "panelTab")
         defer { UserDefaults.standard.set(savedTab, forKey: "panelTab") }
-        for tab in [PanelView.Tab.due, .courses] {
+        for tab in [PanelView.Tab.due, .exams, .courses] {
             UserDefaults.standard.set(tab.rawValue, forKey: "panelTab")
             render(PanelView(), model: model, width: PanelView.width, to: dir.appendingPathComponent("panel-\(tab.rawValue)\(suffix).png"), dark: dark)
         }
         UserDefaults.standard.set(PanelView.Tab.due.rawValue, forKey: "panelTab")
-        // The Due tab's other states: adding a deadline, done ones listed, a hidden course in the footer.
+        // The Deadlines tab's other states: adding a deadline, done ones listed, a hidden course in the footer.
         var busy = model.data
         if let d = busy.deadlines().first(where: { $0.due > .now }) { busy.setDone(d, true) }
         let other = "0366111101 - אלגברה לינארית 1א"

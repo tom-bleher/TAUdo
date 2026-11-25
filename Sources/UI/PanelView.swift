@@ -15,9 +15,9 @@ enum Palette {
     }
 }
 
-/// The menu bar panel: a "Due" tab and a "Courses" tab, one at a time.
+/// The menu bar panel: "Deadlines", "Progress" and "Exams" tabs, one at a time.
 struct PanelView: View {
-    enum Tab: String { case due, courses }
+    enum Tab: String { case due, exams, courses }
 
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
@@ -39,6 +39,7 @@ struct PanelView: View {
                     if adding { AddDeadline { adding = false } }
                     switch tab {
                     case .due: DeadlineList()
+                    case .exams: ExamList()
                     case .courses: CourseList()
                     }
                 }
@@ -58,12 +59,13 @@ struct PanelView: View {
     private var header: some View {
         HStack(spacing: 12) {
             Picker("", selection: $tab) {
-                Text("Due").tag(Tab.due)
-                Text("Courses").tag(Tab.courses)
+                Text("Deadlines").tag(Tab.due)
+                Text("Progress").tag(Tab.courses)
+                Text("Exams").tag(Tab.exams)
             }
             .pickerStyle(.segmented).labelsHidden().fixedSize()
             Spacer()
-            Button { tab = .due; adding.toggle() } label: { Image(systemName: "plus") }
+            Button { if tab == .courses { tab = .due }; adding.toggle() } label: { Image(systemName: "plus") }
                 .help(Text("Add exam or deadline")).keyboardShortcut("n")
             Button { Task { await model.refresh() } } label: {
                 if model.syncing { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.clockwise") }
@@ -220,7 +222,7 @@ struct LinkCourses: View {
     }
 }
 
-// MARK: Due tab
+// MARK: Deadlines tab
 
 struct DeadlineList: View {
     @Environment(AppModel.self) private var model
@@ -232,19 +234,10 @@ struct DeadlineList: View {
         let open = model.open
         let done = model.completed
         let shown = showAll ? open : Array(open.prefix(limit))
-        let groups = Dictionary(grouping: shown) { DueGroup.of($0.due, now: model.now) }
-        let first = DueGroup.allCases.first { groups[$0] != nil }
         let missed = model.overdue.count
         VStack(alignment: .leading, spacing: 0) {
             if open.isEmpty && !(showDone && !done.isEmpty) && !model.data.settings.exportURL.isEmpty { empty }
-            ForEach(DueGroup.allCases, id: \.self) { g in
-                if let items = groups[g] {
-                    Text(g.label).font(.caption.weight(.semibold)).foregroundStyle(g == .overdue ? Color.red : .secondary)
-                        .padding(.horizontal, DeadlineRow.inset).padding(.top, g == first ? 2 : 12).padding(.bottom, 2)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(items) { DeadlineRow(d: $0, group: g) }
-                }
-            }
+            DueSections(items: shown)
             if showDone && !done.isEmpty {
                 Text("Done").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     .padding(.horizontal, DeadlineRow.inset).padding(.top, open.isEmpty ? 2 : 12).padding(.bottom, 2)
@@ -272,12 +265,68 @@ struct DeadlineList: View {
     }
 
     private var empty: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "checkmark.circle").font(.system(size: 30, weight: .light)).foregroundStyle(.tertiary)
-            Group { if model.data.events.isEmpty && model.data.manual.isEmpty { Text("No deadlines yet.") } else { Text("Nothing coming up.") } }
-                .font(.callout).foregroundStyle(.secondary)
+        EmptyNote(systemImage: "checkmark.circle") {
+            if model.data.events.isEmpty && model.data.manual.isEmpty { Text("No deadlines yet.") } else { Text("Nothing coming up.") }
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 22)
+    }
+}
+
+/// Deadlines under day headings (Today, Tomorrow, …).
+struct DueSections: View {
+    @Environment(AppModel.self) private var model
+    let items: [Deadline]
+    var examTags = true
+
+    var body: some View {
+        let groups = Dictionary(grouping: items) { DueGroup.of($0.due, now: model.now) }
+        let first = DueGroup.allCases.first { groups[$0] != nil }
+        ForEach(DueGroup.allCases, id: \.self) { g in
+            if let items = groups[g] {
+                Text(g.label).font(.caption.weight(.semibold)).foregroundStyle(g == .overdue ? Color.red : .secondary)
+                    .padding(.horizontal, DeadlineRow.inset).padding(.top, g == first ? 2 : 12).padding(.bottom, 2)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(items) { DeadlineRow(d: $0, group: g, examTag: examTags) }
+            }
+        }
+    }
+}
+
+/// A large faint icon over a line of text, for an empty tab.
+struct EmptyNote<Label: View>: View {
+    let systemImage: String
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: systemImage).font(.system(size: 30, weight: .light)).foregroundStyle(.tertiary)
+            label.font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 22).padding(.horizontal, 24)
+    }
+}
+
+// MARK: Exams tab
+
+struct ExamList: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        let exams = model.exams
+        VStack(alignment: .leading, spacing: 0) {
+            if exams.isEmpty {
+                EmptyNote(systemImage: "graduationcap") {
+                    if model.data.settings.fetchExams { Text("No upcoming exams.") }
+                    else {
+                        VStack(spacing: 8) {
+                            Text("Exam dates from Arazim are off.")
+                            Button("Settings…") { SettingsTab.exams.open(openSettings) }.controlSize(.small)
+                        }
+                    }
+                }
+            }
+            DueSections(items: exams, examTags: false)
+        }
     }
 }
 
@@ -288,6 +337,7 @@ struct DeadlineRow: View {
     @Environment(AppModel.self) private var model
     let d: Deadline
     let group: DueGroup
+    var examTag = true
     @State private var hover = false
 
     var body: some View {
@@ -303,7 +353,7 @@ struct DeadlineRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Text(d.title).lineLimit(1).strikethrough(d.isDone).foregroundStyle(d.isDone ? .secondary : .primary)
-                    if d.isExam { Tag(text: Text("Exam")) }
+                    if examTag && d.isExam { Tag(text: Text("Exam")) }
                 }
                 Text(verbatim: Lang.joined(model.courseName(d), d.due.dueLabel(group, time: !d.event.isAllDay)))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -335,7 +385,7 @@ struct DeadlineRow: View {
     }
 }
 
-// MARK: Courses tab
+// MARK: Progress tab
 
 struct CourseList: View {
     @Environment(AppModel.self) private var model

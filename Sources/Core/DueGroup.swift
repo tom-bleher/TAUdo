@@ -1,6 +1,6 @@
 import Foundation
 
-/// Sections of the Due tab, by calendar day.
+/// Sections of the Deadlines tab, by calendar day.
 enum DueGroup: Int, CaseIterable, Sendable {
     case overdue, today, tomorrow, thisWeek, later
 

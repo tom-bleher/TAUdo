@@ -355,6 +355,20 @@ final class OverdueSettingTests: XCTestCase {
     }
 }
 
+final class ExamTabTests: XCTestCase {
+    /// Exams live in their own tab; under Deadlines and in the menu bar only when asked for.
+    func testExamsKeptOutOfDueUnlessAsked() {
+        var d = AppData(courses: [])
+        let now = Settings.day(2026, 11, 24)
+        d.exams = [MoodleEvent(uid: "arazim-1", summary: "בחינה מועד א", start: now + 86400, end: now + 86400)]
+        d.events = [MoodleEvent(uid: "hw", summary: "יש להגיש את 'תרגיל בית 1'", start: now + 2 * 86400, end: now + 2 * 86400)]
+        XCTAssertEqual(d.deadlines().map(\.id), ["arazim-1", "hw"], "reminders and calendar still get exams")
+        XCTAssertEqual(d.dueDeadlines().map(\.id), ["hw"])
+        d.settings.examsWithDeadlines = true
+        XCTAssertEqual(d.dueDeadlines().map(\.id), ["arazim-1", "hw"])
+    }
+}
+
 final class SubmittedVsSolvedTests: XCTestCase {
     func testDoneCubeDoesNotHideDeadline() {
         let now = Settings.day(2026, 11, 24)

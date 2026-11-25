@@ -229,7 +229,7 @@
 "Add exam dates from Arazim" = "הוספת מועדי בחינות מארזים";
 "From the public course list at arazim-project.com, once a day. Nothing about you is sent." = "מרשימת הקורסים הציבורית ב־arazim-project.com, פעם ביום. שום מידע עליכם לא נשלח.";
 "My Own" = "משלי";
-"Exams and deadlines that aren't on Moodle. They show up in the menu bar, the reminders and the calendar like Moodle deadlines." = "מבחנים ומועדים שלא מופיעים ב־Moodle. הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
+"Exams and deadlines that aren't on Moodle. They show up in the panel, the reminders and the calendar like Moodle deadlines." = "מבחנים ומועדים שלא מופיעים ב־Moodle. הם מופיעים בחלונית, בתזכורות וביומן כמו מועדי Moodle.";
 
 /* Panel */
 "Add" = "הוספה";
@@ -254,3 +254,10 @@
 "{n} files on their way · opening TAUdo" = "{n} קבצים בדרך · פותח את TAUdo";
 "Let courses be self-study" = "לאפשר קורסים בלימוד עצמי";
 "Set per course under Courses: your own pace toward a finish date." = "נקבע לכל קורס בחלונית הקורסים: בקצב שלך עד תאריך סיום.";
+"Also list exams under Deadlines and in the menu bar" = "להציג מבחנים גם בלשונית המטלות ובשורת התפריטים";
+"They always have their own tab. Reminders and the calendar include them either way." = "תמיד יש להם לשונית משלהם. התזכורות והיומן כוללים אותם בכל מקרה.";
+"No upcoming exams." = "אין מבחנים קרובים.";
+"Exam dates from Arazim are off." = "מועדי המבחנים מארזים כבויים.";
+"Show" = "תצוגה";
+"Deadlines" = "מטלות";
+"Progress" = "התקדמות";

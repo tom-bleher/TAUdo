@@ -567,6 +567,10 @@ struct ExamsSettings: View {
                 Toggle("Add exam dates from Arazim", isOn: $m.data.settings.fetchExams)
                 Note("From the public course list at arazim-project.com, once a day. Nothing about you is sent.")
             }
+            Row("Show") {
+                Toggle("Also list exams under Deadlines and in the menu bar", isOn: $m.data.settings.examsWithDeadlines)
+                Note("They always have their own tab. Reminders and the calendar include them either way.")
+            }
             Rule()
             Row("My Own") {
                 ForEach($m.data.manual) { $x in
@@ -585,7 +589,7 @@ struct ExamsSettings: View {
                 Button("Add exam or deadline") {
                     model.addDeadline(title: String(localized: "Exam"), due: ManualDeadline.suggestedDue(), courseID: model.data.courses.first?.id)
                 }
-                Note("Exams and deadlines that aren't on Moodle. They show up in the menu bar, the reminders and the calendar like Moodle deadlines.")
+                Note("Exams and deadlines that aren't on Moodle. They show up in the panel, the reminders and the calendar like Moodle deadlines.")
             }
         }
         .onChange(of: model.data.manual) { model.push() }
