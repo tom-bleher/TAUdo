@@ -327,6 +327,17 @@ final class SubmittedVsSolvedTests: XCTestCase {
         XCTAssertEqual(hw6.cell?.index, 5)
         XCTAssertFalse(hw6.isDone)
     }
+
+    /// The menu bar switch from before 0.3 carries over: off meant the icon alone.
+    func testMenuBarSwitchMigrates() throws {
+        let decode = { try JSONDecoder().decode(Settings.self, from: Data(($0 as String).utf8)) }
+        XCTAssertEqual(try decode("{}").menuBar, .deadline)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false}"#).menuBar, .icon)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": true}"#).menuBar, .deadline)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false, "menuBar": "timeLeft"}"#).menuBar, .timeLeft)
+        var s = Settings(); s.menuBar = .timeLeft; s.listLimit = 12; s.fetchExams = false
+        XCTAssertEqual(try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(s)), s)
+    }
 }
 
 final class AlertTests: XCTestCase {
@@ -490,6 +501,11 @@ final class DownloadSafetyTests: XCTestCase {
         var d = AppData(courses: [])
         d.exams = ex
         d.ignoredCourseKeys = ["0366110001 - חשבון"]
+        XCTAssertTrue(d.deadlines().isEmpty)
+        // Turning Arazim off hides its exams without forgetting them.
+        d.ignoredCourseKeys = []
+        XCTAssertEqual(d.deadlines().count, 3)
+        d.settings.fetchExams = false
         XCTAssertTrue(d.deadlines().isEmpty)
     }
 

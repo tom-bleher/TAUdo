@@ -11,7 +11,6 @@
 "Add course" = "הוספת קורס";
 "Add exam or deadline" = "הוספת מבחן או מועד הגשה";
 "Add row" = "הוספת שורה";
-"Calendar export link" = "קישור לייצוא היומן";
 "Calendar sync failed: %@" = "סנכרון היומן נכשל: %@";
 "Calendar “%@” is up to date" = "היומן ״%@״ מעודכן";
 "Cancel" = "ביטול";
@@ -22,7 +21,6 @@
 "Connect in browser…" = "חיבור בדפדפן…";
 "Couldn't read that: %@" = "לא ניתן לקרוא את זה: %@";
 "Courses" = "קורסים";
-"Coursework folder" = "תיקיית הקורסים";
 "Delete" = "מחיקה";
 "Delete course" = "מחיקת הקורס";
 "Done" = "בוצע";
@@ -32,10 +30,8 @@
 "Ends" = "סיום";
 "Exam" = "מבחן";
 "Exams" = "מבחנים";
-"Files" = "קבצים";
 "Finish by" = "לסיים עד";
 "Folder" = "תיקייה";
-"Exam dates come from Arazim automatically. Add other exams and deadlines that aren't on Moodle here: they show up in the menu bar, reminders and the calendar like Moodle deadlines." = "מועדי הבחינות מגיעים אוטומטית מארזים. כאן אפשר להוסיף מבחנים ומועדים אחרים שלא מופיעים ב־Moodle: הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
 "General" = "כללי";
 "HW" = "ש״ב";
 "HW %lld" = "תרגיל %lld";
@@ -46,7 +42,6 @@
 "Import from track.html" = "ייבוא מ־track.html";
 "Import progress from track.html…" = "ייבוא התקדמות מ־track.html…";
 "In the browser: log in, choose All events and a custom range, click Get calendar URL, then copy the link." = "בדפדפן: התחברו, בחרו את כל האירועים וטווח מותאם, לחצו על הכפתור לקבלת כתובת היומן והעתיקו את הקישור.";
-"Include lectures and other events, not only deadlines" = "לכלול גם הרצאות ואירועים אחרים, לא רק מועדי הגשה";
 "Install sync bookmark…" = "התקנת סימניית סנכרון…";
 "Language" = "שפה";
 "Lec" = "הרצ׳";
@@ -55,10 +50,8 @@
 "Log in to Moodle in your browser and copy your calendar link. TAUdo picks it up from the clipboard." = "התחברו ל־Moodle בדפדפן והעתיקו את קישור היומן. TAUdo יקלוט אותו מהלוח.";
 "Mac notifications" = "התראות Mac";
 "Mark done" = "סימון כבוצע";
-"Menu bar" = "שורת התפריטים";
 "Mirror Moodle into a calendar" = "העתקת Moodle ליומן";
 "Moodle" = "‏Moodle";
-"Moodle course" = "קורס ב־Moodle";
 "Moodle rejected the calendar link. Reconnect Moodle to get a new one." = "‏Moodle דחה את קישור היומן. התחברו מחדש כדי לקבל קישור חדש.";
 "Moodle returned HTTP %lld. The academic year may have changed: reconnect Moodle." = "‏Moodle החזיר שגיאה %lld. ייתכן ששנת הלימודים התחלפה: התחברו מחדש.";
 "Moodle returned a web page instead of a calendar. Reconnect Moodle." = "‏Moodle החזיר דף אינטרנט במקום יומן. התחברו מחדש.";
@@ -75,7 +68,6 @@
 "One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click)." = "תיקייה לכל קורס, בשם הקורס. כך הקוביות פותחות את ההקלטה, את תיקיית התרגיל או את קובץ התרגול (⌘-לחיצה או לחיצה ימנית).";
 "Open %@" = "פתיחת %@";
 "Open Moodle in browser" = "פתיחת Moodle בדפדפן";
-"Open at login" = "פתיחה בהתחברות";
 "Open course folder" = "פתיחת תיקיית הקורס";
 "Open in Moodle" = "פתיחה ב־Moodle";
 "Open track.html in your browser, open the developer console and run:" = "פתחו את track.html בדפדפן, פתחו את מסוף המפתחים והריצו:";
@@ -84,7 +76,6 @@
 "Quit TAUdo" = "יציאה מ־TAUdo";
 "Rec" = "תרג׳";
 "Recitation" = "תרגול";
-"Refresh every" = "רענון כל";
 "Refresh from Moodle" = "רענון מ־Moodle";
 "Refresh now" = "רענון עכשיו";
 "Revisit" = "לחזור אליו";
@@ -94,8 +85,6 @@
 "Settings…" = "הגדרות…";
 "Show %lld overdue" = "הצגת %lld שעברו";
 "Show less" = "הצגת פחות";
-"Show overdue deadlines" = "הצגת מועדים שעברו";
-"Show the next deadline and days left" = "הצגת המועד הבא והזמן שנותר";
 "Skipped" = "דילגתי";
 "Starts" = "התחלה";
 "Synced %@" = "סונכרן %@";
@@ -121,7 +110,6 @@
 "Choose…" = "בחירה…";
 "Connected. Deadlines sync on their own." = "מחובר. מועדי ההגשה מסתנכרנים מעצמם.";
 "Course folder (optional)" = "תיקיית קורסים (לא חובה)";
-"Hidden Moodle courses" = "קורסי Moodle מוסתרים";
 "If you keep one folder per course, cubes can open lecture recordings, homework folders and recitations." = "אם יש לך תיקייה לכל קורס, הקוביות יכולות לפתוח הקלטות של הרצאות, תיקיות של תרגילים ותרגולים.";
 "No Moodle courses with deadlines yet. You can add courses in Settings." = "עדיין אין קורסים ב־Moodle עם מועדי הגשה. אפשר להוסיף קורסים בהגדרות.";
 "No courses yet. Connect Moodle and pick your courses, or add one in Settings." = "אין עדיין קורסים. התחברו ל־Moodle ובחרו את הקורסים שלכם, או הוסיפו קורס בהגדרות.";
@@ -138,12 +126,10 @@
 "%lld due today" = "%lld להגשה היום";
 "%lld due tomorrow" = "%lld להגשה מחר";
 "%lld new deadlines on Moodle" = "%lld מועדי הגשה חדשים ב־Moodle";
-"Alert when Moodle posts or moves a deadline" = "התראה כש־Moodle מפרסם מועד הגשה או מזיז אותו";
 "Morning summary" = "סיכום בוקר";
 "Moved: %@" = "הוזז: %@";
 "New: %@" = "חדש: %@";
 "Now due %@ (was %@)" = "עכשיו להגשה עד %@ (היה %@)";
-"Off" = "כבוי";
 "Saved %lld files from %@" = "נשמרו %lld קבצים מהקורס %@";
 "TAUdo: download all files from this course to your course folder?" = "‏TAUdo: להוריד את כל הקבצים של הקורס הזה לתיקיית הקורס?";
 "Today:" = "היום:";
@@ -152,7 +138,7 @@
 "The semester in Settings has ended. Set the new semester's dates so the class markers stay right." = "הסמסטר שמוגדר בהגדרות הסתיים. כדאי לעדכן את תאריכי הסמסטר החדש כדי שסימוני הכיתה יישארו מדויקים.";
 
 "This TAUdo bookmark is out of date" = "‏סימניית TAUdo הזו לא מעודכנת";
-"Install it again from the ⋯ menu › Install sync bookmark…" = "התקינו אותה מחדש מתפריט ⋯ › התקנת סימניית סנכרון…";
+"Install it again from Settings › Moodle › Install sync bookmark…" = "התקינו אותה מחדש בהגדרות › Moodle › התקנת סימניית סנכרון…";
 "TAUdo: open Moodle and log in first, then click this bookmark again." = "‏TAUdo: קודם צריך לפתוח את Moodle ולהתחבר, ואז ללחוץ שוב על הסימנייה.";
 
 "Overdue" = "עבר המועד";
@@ -162,8 +148,6 @@
 "Later" = "בהמשך";
 "Notifications" = "התראות";
 "These dates set where the class marker is in each course." = "לפי התאריכים האלה נקבע איפה הכיתה נמצאת בכל קורס.";
-"Deadlines" = "מועדי הגשה";
-"Sync bookmark" = "סימניית הסנכרון";
 "Last used %@" = "שימוש אחרון %@";
 "Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files." = "לחיצה על הסימנייה ב־Moodle מסמנת את המטלות שהגשתם. בדף של קורס היא גם מורידה את קובצי הקורס.";
 "1 week" = "שבוע";
@@ -171,9 +155,7 @@
 "1 day" = "יום";
 "3 hours" = "3 שעות";
 "1 hour" = "שעה";
-"Remind me before a deadline" = "תזכורת לפני מועד הגשה";
 "Deadlines you've marked done never remind you." = "מועדים שסומנו כבוצעו לא מזכירים.";
-"With mirroring on, reminders are calendar alerts instead of Mac notifications, so they reach your iPhone too." = "כשההעתקה פעילה, התזכורות הן התראות יומן במקום התראות Mac, ולכן מגיעות גם לאייפון.";
 "Delete “%@”?" = "למחוק את ״%@״?";
 "Its progress cubes are deleted too. Moodle deadlines stay." = "גם קוביות ההתקדמות של הקורס יימחקו. מועדי ההגשה מ־Moodle יישארו.";
 "Type" = "סוג";
@@ -184,9 +166,70 @@
 "New calendar “%@”" = "יומן חדש ״%@״";
 "Google Calendar" = "יומן Google";
 "Updates" = "עדכונים";
-"Check for updates automatically" = "בדיקת עדכונים אוטומטית";
-"Install updates automatically" = "התקנת עדכונים אוטומטית";
 "Check for Updates…" = "בדיקת עדכונים…";
-"Version %@. Updates install when TAUdo quits." = "גרסה %@ · עדכונים מותקנים כש־TAUdo נסגר.";
 "Add Google Account…" = "הוספת חשבון Google…";
 "Add your Google account in System Settings › Internet Accounts with Calendars on, then pick one of its calendars above. TAUdo writes to it like any other calendar: all-day deadlines, done marks and alerts. To keep them apart, first create a calendar named Moodle in Google Calendar." = "הוסיפו את חשבון Google בהגדרות המערכת › חשבונות אינטרנט עם לוחות שנה מופעלים, ובחרו למעלה אחד מהיומנים שלו. TAUdo כותב אליו כמו לכל יומן אחר: מועדי הגשה כאירועים של יום שלם, סימוני ביצוע והתראות. כדי לשמור עליהם בנפרד, צרו קודם ב־Google Calendar יומן בשם Moodle.";
+
+/* Settings window */
+"Menu Bar" = "שורת התפריטים";
+"Startup" = "הפעלה";
+"Data" = "נתונים";
+"Show in Finder" = "הצגה ב־Finder";
+"Everything TAUdo knows stays in one file on this Mac." = "כל מה ש־TAUdo יודע נשמר בקובץ אחד ב־Mac הזה.";
+"Menu Bar Shows" = "בשורת התפריטים";
+"The icon only" = "הסמל בלבד";
+"Time left until the next deadline" = "הזמן שנותר עד המועד הבא";
+"The next deadline and time left" = "המועד הבא והזמן שנותר";
+"Missed" = "מועדים שעברו";
+"Show deadlines missed in the last week" = "הצגת מועדים שעברו בשבוע האחרון";
+"They head the list and are counted in the menu bar." = "הם מופיעים בראש הרשימה ונספרים בשורת התפריטים.";
+"Deadline List" = "רשימת המועדים";
+"%lld deadlines" = "%lld מועדים";
+"Later deadlines wait behind “more…”." = "שאר המועדים מופיעים בלחיצה על ״עוד…״.";
+"Connection" = "חיבור";
+"Connected" = "מחובר";
+"Not connected" = "לא מחובר";
+"Calendar Link" = "קישור היומן";
+"The link is a key to your Moodle calendar. Don't share it." = "הקישור הוא מפתח ליומן שלכם ב־Moodle. אל תשתפו אותו.";
+"Refresh Every" = "רענון כל";
+"Sync Bookmark" = "סימניית הסנכרון";
+"Course Files" = "קובצי הקורסים";
+"Hidden" = "מוסתרים";
+"Nothing is hidden." = "שום דבר לא מוסתר.";
+"%lld hidden deadlines" = "%lld מועדים מוסתרים";
+"%lld hidden courses" = "%lld קורסים מוסתרים";
+"Deadlines of hidden courses stay out of the list, the reminders and the calendar." = "מועדים של קורסים מוסתרים לא מופיעים ברשימה, בתזכורות וביומן.";
+"Moodle courses you marked as not yours. Show them again in Settings." = "קורסי Moodle שסימנתם שאינם שלכם. אפשר להציג אותם מחדש בהגדרות.";
+"Moodle Course" = "קורס ב־Moodle";
+"Notify With" = "התראה באמצעות";
+"Notifications from TAUdo are turned off in System Settings." = "ההתראות של TAUdo כבויות בהגדרות המערכת.";
+"Open System Settings…" = "פתיחת הגדרות המערכת…";
+"Remind Me Before" = "תזכורת לפני";
+"With calendar sync on, these are calendar alerts, so they reach your iPhone too." = "כשסנכרון היומן פעיל, אלה התראות יומן, ולכן הן מגיעות גם לאייפון.";
+"Also Notify" = "להתריע גם";
+"When Moodle posts or moves a deadline" = "כש־Moodle מפרסם מועד הגשה או מזיז אותו";
+"With a morning summary at" = "בסיכום בוקר בשעה";
+"Options" = "אפשרויות";
+"Play a sound" = "השמעת צליל";
+"Send Test Notification" = "שליחת התראת ניסיון";
+"TAUdo notifications work" = "ההתראות של TAUdo פועלות";
+"This is how a reminder looks." = "כך נראית תזכורת.";
+"Calendar Sync" = "סנכרון יומן";
+"Each deadline becomes an all-day event with its due time and a done mark, in Apple Calendar or any account your Mac syncs." = "כל מועד הגשה הופך לאירוע של יום שלם, עם שעת ההגשה וסימון ביצוע, ביומן של Apple או בכל חשבון שה־Mac מסנכרן.";
+"Include" = "לכלול";
+"Lectures and other Moodle events, not only deadlines" = "הרצאות ואירועים אחרים מ־Moodle, לא רק מועדי הגשה";
+"Check for Updates" = "בדיקת עדכונים";
+"Automatically" = "אוטומטית";
+"Download and install new versions automatically" = "הורדה והתקנה אוטומטית של גרסאות חדשות";
+"Check Now" = "בדיקה עכשיו";
+"Updates install when TAUdo quits." = "עדכונים מותקנים כש־TAUdo נסגר.";
+"Version" = "גרסה";
+"TAUdo on GitHub" = "‏TAUdo ב־GitHub";
+"Exam Dates" = "מועדי בחינות";
+"Add exam dates from Arazim" = "הוספת מועדי בחינות מארזים";
+"From the public course list at arazim-project.com, once a day. Nothing about you is sent." = "מרשימת הקורסים הציבורית ב־arazim-project.com, פעם ביום. שום מידע עליכם לא נשלח.";
+"My Own" = "משלי";
+"Exams and deadlines that aren't on Moodle. They show up in the menu bar, the reminders and the calendar like Moodle deadlines." = "מבחנים ומועדים שלא מופיעים ב־Moodle. הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
+
+
+

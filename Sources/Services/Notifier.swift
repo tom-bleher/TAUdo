@@ -9,6 +9,8 @@ enum Notifier {
     nonisolated private static let digestPrefix = "digest."
     nonisolated static let category = "deadline", doneAction = "done"
     private static var center: UNUserNotificationCenter { .current() }
+    /// Whether notifications play a sound (Settings › Notifications).
+    static var sound = true
 
     /// Registers the "Mark done" button shown on deadline reminders.
     static func registerActions() {
@@ -24,6 +26,15 @@ enum Notifier {
 
     static func requestAuthorization() async -> Bool {
         (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+    }
+
+    /// Whether macOS lets TAUdo show notifications (nil: not asked yet).
+    static func isAllowed() async -> Bool? {
+        switch await center.notificationSettings().authorizationStatus {
+        case .notDetermined: nil
+        case .denied: false
+        default: true
+        }
     }
 
     struct Plan {
@@ -53,7 +64,7 @@ enum Notifier {
                     content.subtitle = plan.courseName(d)
                     // "in 1 day" as seen when the reminder fires, not when it was scheduled.
                     content.body = String(localized: "Due \(d.due.medium(time: !d.event.isAllDay)) (\(relative.localizedString(for: d.due, relativeTo: fire)))")
-                    content.sound = .default
+                    content.sound = sound ? .default : nil
                     content.categoryIdentifier = category
                     await add("\(prefix)\(d.id).\(lead)", content, at: fire, now: now)
                 }
@@ -69,6 +80,7 @@ enum Notifier {
                 let content = UNMutableNotificationContent()
                 content.title = text.title
                 content.body = text.body
+                content.sound = sound ? .default : nil
                 await add("\(digestPrefix)\(Int(day.timeIntervalSince1970))", content, at: fire, now: now)
             }
         }
@@ -80,7 +92,7 @@ enum Notifier {
         content.title = title
         content.body = body
         if let url { content.userInfo["open"] = url.path }
-        content.sound = .default
+        content.sound = sound ? .default : nil
         center.add(UNNotificationRequest(identifier: "alert.\(id)", content: content, trigger: nil))
     }
 

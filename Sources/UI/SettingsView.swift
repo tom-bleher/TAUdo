@@ -1,151 +1,212 @@
 import ServiceManagement
 import SwiftUI
 
+enum SettingsTab: String, CaseIterable {
+    case general, menuBar, moodle, courses, exams, notifications, calendar, updates
+
+    /// Opens the Settings window on this tab.
+    @MainActor func open(_ openSettings: OpenSettingsAction) {
+        UserDefaults.standard.set(rawValue, forKey: "settingsTab")
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
+    }
+}
+
 struct SettingsView: View {
     static let width: CGFloat = 640
 
+    @Environment(AppModel.self) private var model
+    @AppStorage("settingsTab") private var tab = SettingsTab.general
+
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            MoodleSettings().tabItem { Label("Moodle", systemImage: "link") }
-            NotificationSettings().tabItem { Label("Notifications", systemImage: "bell.badge") }
-            CoursesSettings().tabItem { Label("Courses", systemImage: "square.grid.3x3") }
-            ExamsSettings().tabItem { Label("Exams", systemImage: "calendar.badge.plus") }
+        TabView(selection: $tab) {
+            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
+            MenuBarSettings().tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }.tag(SettingsTab.menuBar)
+            MoodleSettings().tabItem { Label("Moodle", systemImage: "graduationcap") }.tag(SettingsTab.moodle)
+            CoursesSettings().tabItem { Label("Courses", systemImage: "square.grid.3x3") }.tag(SettingsTab.courses)
+            ExamsSettings().tabItem { Label("Exams", systemImage: "calendar.badge.clock") }.tag(SettingsTab.exams)
+            NotificationSettings().tabItem { Label("Notifications", systemImage: "bell.badge") }.tag(SettingsTab.notifications)
+            CalendarSettings().tabItem { Label("Calendar", systemImage: "calendar") }.tag(SettingsTab.calendar)
+            UpdateSettings().tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.updates)
         }
         .frame(width: Self.width)
+        // Reminders and the calendar follow the settings: one debounced push covers every control.
+        .onChange(of: model.data.settings) { model.push() }
     }
 }
 
-private extension View {
-    /// A grouped settings form as tall as its content, so each tab gets a window that fits it.
-    func settingsForm() -> some View {
-        formStyle(.grouped).scrollDisabled(true).fixedSize(horizontal: false, vertical: true)
-    }
-
-    func footnote() -> some View { font(.caption).foregroundStyle(.secondary) }
-}
+// MARK: General
 
 struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
+    @State private var importing = false
 
     var body: some View {
         @Bindable var m = model
-        Form {
-            Section {
-                Toggle("Show the next deadline and days left", isOn: $m.data.settings.menuBarShowsNext)
-                Toggle("Show overdue deadlines", isOn: $m.data.settings.showOverdue)
-                Toggle("Open at login", isOn: $launchAtLogin)
+        Pane {
+            Row("Startup") {
+                Toggle("Open TAUdo at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) {
                         do { try launchAtLogin ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister(); loginError = nil }
                         catch { loginError = error.localizedDescription }
                     }
                 if let e = loginError { Text(e).font(.caption).foregroundStyle(.orange) }
-            } header: { Text("Menu bar") }
-            Section {
-                DatePicker("Starts", selection: $m.data.settings.semesterStart, displayedComponents: .date)
-                DatePicker("Ends", selection: $m.data.settings.semesterEnd, displayedComponents: .date)
-            } header: { Text("Semester") } footer: {
-                Text("These dates set where the class marker is in each course.").footnote()
             }
-            Section {
+            Row("Language") {
                 Picker("Language", selection: Binding(get: { Lang.code }, set: { Lang.set($0) })) {
                     Text(verbatim: "עברית").tag("he")
                     Text(verbatim: "English").tag("en")
                 }
-            } footer: { Text("TAUdo restarts to switch language.").footnote() }
-            UpdatesSection()
-        }
-        .settingsForm()
-    }
-}
-
-private struct UpdatesSection: View {
-    @Bindable private var updates = Updates.shared
-
-    var body: some View {
-        Section {
-            Toggle("Check for updates automatically", isOn: $updates.checksAutomatically)
-            Toggle("Install updates automatically", isOn: $updates.installsAutomatically)
-                .disabled(!updates.checksAutomatically)
-            Button("Check for Updates…") { updates.check() }.disabled(!updates.canCheck)
-        } header: { Text("Updates") } footer: {
-            let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-            Text("Version \(v). Updates install when TAUdo quits.").footnote()
-        }
-    }
-}
-
-struct MoodleSettings: View {
-    @Environment(AppModel.self) private var model
-    @State private var importing = false
-
-    var body: some View {
-        @Bindable var m = model
-        Form {
-            Section {
-                TextField("Calendar export link", text: $m.data.settings.exportURL, prompt: Text("https://moodle.tau.ac.il/…/calendar/export_execute.php?…"))
-                    .onSubmit { Task { await model.refresh() } }
-                Picker("Refresh every", selection: $m.data.settings.refreshMinutes) {
-                    ForEach([15, 30, 60, 180], id: \.self) { m in Group { if m < 60 { Text("\(m) min") } else { Text("\(m / 60) h") } }.tag(m) }
-                }
-                HStack {
-                    Group {
-                        if let s = model.connectStatus { Text(s).foregroundStyle(.blue) }
-                        else if let e = model.feedError { Text(e).foregroundStyle(.orange) }
-                        else if let t = model.data.lastSync { Text("Synced \(t.relative())").foregroundStyle(.secondary) }
-                        else { Text("Not synced yet").foregroundStyle(.secondary) }
-                    }
-                    .font(.caption).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
-                    Button("Connect in browser…") { model.connect() }
-                    Button("Refresh now") { Task { await model.refresh() } }.disabled(model.syncing)
-                }
-            } header: { Text("Deadlines") }
-            Section {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sync bookmark")
-                        if let t = model.data.lastStatusCheck { Text("Last used \(t.relative())").footnote() }
-                    }
-                    Spacer(minLength: 8)
-                    Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey, base: model.data.settings.moodleBaseURL) }
-                }
-            } footer: {
-                Text("Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files.").footnote()
+                .pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden()
+                Note("TAUdo restarts to switch language.")
             }
-            Section {
+            Rule()
+            Row("Semester") {
+                HStack(spacing: 8) {
+                    DatePicker("Starts", selection: $m.data.settings.semesterStart, displayedComponents: .date)
+                    DatePicker("Ends", selection: $m.data.settings.semesterEnd, displayedComponents: .date).padding(.leading, 10)
+                }
+                .fixedSize()
+                Note("These dates set where the class marker is in each course.")
+            }
+            Rule()
+            Row("Data") {
                 HStack {
-                    TextField("Coursework folder", text: $m.data.settings.courseworkFolder, prompt: Text("Not set"))
-                        .onSubmit { Task { await model.scanFiles() } }
-                    Button("Choose…") { if let p = FolderPicker.choose() { model.data.settings.courseworkFolder = p; Task { await model.scanFiles() } } }
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([AppModel.fileURL]) }
+                    Button("Import progress from track.html…") { importing = true }
                 }
-            } header: { Text("Files") } footer: {
-                Text("One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click).").footnote()
-            }
-            if !model.data.ignoredCourseKeys.isEmpty {
-                Section("Hidden Moodle courses") {
-                    ForEach(model.data.ignoredCourseKeys.sorted(), id: \.self) { key in
-                        HStack {
-                            Text(model.data.courseLabel(key))
-                            Spacer()
-                            Button("Show again") { model.data.ignoredCourseKeys.remove(key); model.push() }
-                        }
-                    }
-                }
-            }
-            Section {
-                Button("Import progress from track.html…") { importing = true }
+                Note("Everything TAUdo knows stays in one file on this Mac.")
             }
         }
-        .settingsForm()
         .sheet(isPresented: $importing) { ImportSheet() }
     }
 }
 
+// MARK: Menu bar
+
+struct MenuBarSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var m = model
+        Pane {
+            Row("Menu Bar Shows") {
+                Picker("Menu Bar Shows", selection: $m.data.settings.menuBar) {
+                    Text("The icon only").tag(MenuBarContent.icon)
+                    Text("Time left until the next deadline").tag(MenuBarContent.timeLeft)
+                    Text("The next deadline and time left").tag(MenuBarContent.deadline)
+                }
+                .pickerStyle(.radioGroup).labelsHidden()
+            }
+            Row("Missed") {
+                Toggle("Show deadlines missed in the last week", isOn: $m.data.settings.showOverdue)
+                Note("They head the list and are counted in the menu bar.")
+            }
+            Rule()
+            Row("Deadline List") {
+                Picker("Deadline List", selection: $m.data.settings.listLimit) {
+                    ForEach([5, 8, 12, 20], id: \.self) { Text("\($0) deadlines").tag($0) }
+                }
+                .labelsHidden().fixedSize()
+                Note("Later deadlines wait behind “more…”.")
+            }
+        }
+    }
+}
+
+// MARK: Moodle
+
+struct MoodleSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var m = model
+        let s = model.data.settings
+        Pane {
+            Row("Connection") {
+                HStack(alignment: .firstTextBaseline) {
+                    status
+                    Spacer(minLength: 8)
+                    Button("Refresh now") { Task { await model.refresh() } }.disabled(model.syncing || s.exportURL.isEmpty)
+                }
+            }
+            Row("Calendar Link") {
+                TextField("Calendar Link", text: $m.data.settings.exportURL, prompt: Text("https://moodle.tau.ac.il/…/calendar/export_execute.php?…"))
+                    .labelsHidden().textFieldStyle(.roundedBorder)
+                    .onSubmit { Task { await model.refresh() } }
+                Button("Connect in browser…") { model.connect() }
+                Note("The link is a key to your Moodle calendar. Don't share it.")
+            }
+            Row("Refresh Every") {
+                Picker("Refresh Every", selection: $m.data.settings.refreshMinutes) {
+                    ForEach([15, 30, 60, 180], id: \.self) { m in Group { if m < 60 { Text("\(m) min") } else { Text("\(m / 60) h") } }.tag(m) }
+                }
+                .labelsHidden().fixedSize()
+            }
+            Rule()
+            Row("Sync Bookmark") {
+                HStack(alignment: .firstTextBaseline) {
+                    Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: s.syncKey, base: s.moodleBaseURL) }
+                    if let t = model.data.lastStatusCheck { Note(Text("Last used \(t.relative())")) }
+                }
+                Note("Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files.")
+            }
+            Rule()
+            Row("Course Files") {
+                HStack {
+                    TextField("Course Files", text: $m.data.settings.courseworkFolder, prompt: Text("Not set"))
+                        .labelsHidden().textFieldStyle(.roundedBorder)
+                        .onSubmit { Task { await model.scanFiles() } }
+                    Button("Choose…") { if let p = FolderPicker.choose() { model.data.settings.courseworkFolder = p; Task { await model.scanFiles() } } }
+                }
+                Note("One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click).")
+            }
+            Rule()
+            Row("Hidden") { hidden }
+        }
+    }
+
+    @ViewBuilder private var status: some View {
+        if let c = model.connectStatus { StatusLine(color: .blue, text: Text(c)) }
+        else if let e = model.feedError { StatusLine(color: .orange, text: Text(e)) }
+        else if model.data.settings.exportURL.isEmpty { StatusLine(color: .gray, text: Text("Not connected")) }
+        else if let t = model.data.lastSync { StatusLine(color: .green, text: Text("Connected") + Text(verbatim: " · ") + Text("Synced \(t.relative())").foregroundStyle(.secondary)) }
+        else { StatusLine(color: .gray, text: Text("Not synced yet")) }
+    }
+
+    /// Courses and deadlines you said aren't yours, with a way back.
+    @ViewBuilder private var hidden: some View {
+        let keys = model.data.ignoredCourseKeys.sorted()
+        if keys.isEmpty && model.hiddenDeadlineCount == 0 {
+            Text("Nothing is hidden.").foregroundStyle(.secondary)
+        }
+        ForEach(keys, id: \.self) { key in
+            HStack(alignment: .firstTextBaseline) {
+                Text(verbatim: key).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 8)
+                Button("Show again") { model.show(moodleCourse: key) }.controlSize(.small)
+            }
+        }
+        if model.hiddenDeadlineCount > 0 {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(model.hiddenDeadlineCount) hidden deadlines")
+                Spacer(minLength: 8)
+                Button("Show again") { model.showHiddenDeadlines() }.controlSize(.small)
+            }
+        }
+        if !keys.isEmpty { Note("Deadlines of hidden courses stay out of the list, the reminders and the calendar.") }
+    }
+}
+
+// MARK: Notifications
+
 struct NotificationSettings: View {
     @Environment(AppModel.self) private var model
+    /// Whether macOS allows TAUdo's notifications (nil: not asked yet).
+    @State private var allowed: Bool?
+    @State private var lastDigestHour = 8
 
     private static let reminderChoices: [(Int, String)] = [
         (7 * 1440, String(localized: "1 week")), (2 * 1440, String(localized: "2 days")), (1440, String(localized: "1 day")),
@@ -154,72 +215,143 @@ struct NotificationSettings: View {
 
     var body: some View {
         @Bindable var m = model
-        Form {
-            Section {
+        let s = model.data.settings
+        Pane {
+            Row("Notify With") {
                 Toggle("Mac notifications", isOn: $m.data.settings.notifications)
-                    .onChange(of: model.data.settings.notifications) {
-                        Task { if model.data.settings.notifications { _ = await Notifier.requestAuthorization() }; model.push() }
+                    .onChange(of: s.notifications) {
+                        // Push again once the system prompt is answered: reminders can't be scheduled before that.
+                        Task { if s.notifications { _ = await Notifier.requestAuthorization() }; allowed = await Notifier.isAllowed(); model.push() }
                     }
-                LabeledContent("Remind me before a deadline") {
-                    HStack(spacing: 4) {
-                        ForEach(Self.reminderChoices, id: \.0) { minutes, label in
-                            Toggle(label, isOn: Binding(
-                                get: { model.data.settings.reminderMinutes.contains(minutes) },
-                                set: { on in
-                                    var r = Set(model.data.settings.reminderMinutes)
-                                    if on { r.insert(minutes) } else { r.remove(minutes) }
-                                    model.data.settings.reminderMinutes = r.sorted(by: >)
-                                    model.push()
-                                }))
-                            .toggleStyle(.button)
+                if s.notifications && allowed == false {
+                    HStack(alignment: .firstTextBaseline) {
+                        StatusLine(color: .orange, text: Text("Notifications from TAUdo are turned off in System Settings."))
+                        Button("Open System Settings…") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
                         }
+                        .controlSize(.small)
                     }
-                    .controlSize(.small)
+                    .font(.callout)
                 }
-                Toggle("Alert when Moodle posts or moves a deadline", isOn: $m.data.settings.alertChanges)
-                Picker("Morning summary", selection: Binding(get: { model.data.settings.digestHour ?? -1 },
-                                                             set: { model.data.settings.digestHour = $0 < 0 ? nil : $0; model.push() })) {
-                    Text("Off").tag(-1)
-                    ForEach([6, 7, 8, 9, 10], id: \.self) { h in Text(verbatim: String(format: "%02d:00", h)).tag(h) }
+            }
+            Row("Remind Me Before") {
+                HStack(spacing: 14) {
+                    ForEach(Self.reminderChoices, id: \.0) { minutes, label in
+                        Toggle(label, isOn: Binding(
+                            get: { s.reminderMinutes.contains(minutes) },
+                            set: { on in
+                                var r = Set(s.reminderMinutes)
+                                if on { r.insert(minutes) } else { r.remove(minutes) }
+                                model.data.settings.reminderMinutes = r.sorted(by: >)
+                            }))
+                    }
                 }
-            } footer: { Text("Deadlines you've marked done never remind you.").footnote() }
-            Section {
+                Note(s.calendarSync ? "With calendar sync on, these are calendar alerts, so they reach your iPhone too."
+                                    : "Deadlines you've marked done never remind you.")
+            }
+            // Calendar alerts use these lead times too, with or without Mac notifications.
+            .disabled(!s.notifications && !s.calendarSync)
+            Group {
+                Row("Also Notify") {
+                    Toggle("When Moodle posts or moves a deadline", isOn: $m.data.settings.alertChanges)
+                    HStack(spacing: 6) {
+                        Toggle("With a morning summary at", isOn: Binding(get: { s.digestHour != nil },
+                                                                          set: { model.data.settings.digestHour = $0 ? lastDigestHour : nil }))
+                        Picker("Morning summary", selection: Binding(get: { s.digestHour ?? lastDigestHour },
+                                                                     set: { lastDigestHour = $0; model.data.settings.digestHour = $0 })) {
+                            ForEach([6, 7, 8, 9, 10], id: \.self) { h in Text(verbatim: String(format: "%02d:00", h)).tag(h) }
+                        }
+                        .labelsHidden().fixedSize().disabled(s.digestHour == nil)
+                    }
+                }
+                Rule()
+                Row("Options") {
+                    Toggle("Play a sound", isOn: $m.data.settings.notificationSound)
+                    Button("Send Test Notification") {
+                        Notifier.sound = s.notificationSound
+                        Notifier.post(String(localized: "TAUdo notifications work"), String(localized: "This is how a reminder looks."), id: "test")
+                    }
+                }
+            }
+            .disabled(!s.notifications)
+        }
+        .task { allowed = await Notifier.isAllowed(); lastDigestHour = s.digestHour ?? 8 }
+    }
+}
+
+// MARK: Calendar
+
+struct CalendarSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var m = model
+        let s = model.data.settings
+        Pane {
+            Row("Calendar Sync") {
                 Toggle("Mirror Moodle into a calendar", isOn: $m.data.settings.calendarSync)
-                    .onChange(of: model.data.settings.calendarSync) { model.push() }
-                if model.data.settings.calendarSync {
-                    if !model.calendarChoices.isEmpty {
-                        Picker("Calendar", selection: Binding(get: { model.data.settings.calendarID }, set: { model.useCalendar($0) })) {
-                            Text("New calendar “\(model.data.settings.calendarName)”").tag(String?.none)
-                            ForEach(Dictionary(grouping: model.calendarChoices, by: \.account).sorted { $0.key < $1.key }, id: \.key) { account, calendars in
-                                Section(account) {
-                                    ForEach(calendars, id: \.id) { Text($0.title).tag(Optional($0.id)) }
-                                }
+                Note("Each deadline becomes an all-day event with its due time and a done mark, in Apple Calendar or any account your Mac syncs.")
+            }
+            Group {
+                Row("Calendar") {
+                    Picker("Calendar", selection: Binding(get: { s.calendarID }, set: { model.useCalendar($0) })) {
+                        Text("New calendar “\(s.calendarName)”").tag(String?.none)
+                        // Chosen calendar not listed (no calendar access right now): keep the selection valid.
+                        if let id = s.calendarID, !model.calendarChoices.contains(where: { $0.id == id }) {
+                            Text(verbatim: s.calendarName).tag(Optional(id))
+                        }
+                        ForEach(Dictionary(grouping: model.calendarChoices, by: \.account).sorted { $0.key < $1.key }, id: \.key) { account, calendars in
+                            Section(account) {
+                                ForEach(calendars, id: \.id) { Text($0.title).tag(Optional($0.id)) }
                             }
                         }
                     }
-                    Toggle("Include lectures and other events, not only deadlines", isOn: $m.data.settings.calendarIncludesAllEvents)
-                        .onChange(of: model.data.settings.calendarIncludesAllEvents) { model.push() }
-                    if let s = model.calendarStatus { Text(s).footnote() }
+                    .labelsHidden().fixedSize()
+                    if s.calendarSync, let status = model.calendarStatus { Note(Text(status)) }
                 }
-            } header: { Text("Calendar") } footer: {
-                Text("With mirroring on, reminders are calendar alerts instead of Mac notifications, so they reach your iPhone too.").footnote()
+                Row("Include") {
+                    Toggle("Lectures and other Moodle events, not only deadlines", isOn: $m.data.settings.calendarIncludesAllEvents)
+                }
             }
-            Section {
-                HStack {
-                    Text("Google Calendar")
-                    Spacer(minLength: 8)
-                    Button("Add Google Account…") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension")!)
-                    }
+            .disabled(!s.calendarSync)
+            Rule()
+            Row("Google Calendar") {
+                Button("Add Google Account…") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension")!)
                 }
-            } footer: {
-                Text("Add your Google account in System Settings › Internet Accounts with Calendars on, then pick one of its calendars above. TAUdo writes to it like any other calendar: all-day deadlines, done marks and alerts. To keep them apart, first create a calendar named Moodle in Google Calendar.").footnote()
+                Note("Add your Google account in System Settings › Internet Accounts with Calendars on, then pick one of its calendars above. TAUdo writes to it like any other calendar: all-day deadlines, done marks and alerts. To keep them apart, first create a calendar named Moodle in Google Calendar.")
             }
         }
-        .settingsForm()
         .onAppear { model.refreshCalendarChoices() }
     }
 }
+
+// MARK: Updates
+
+struct UpdateSettings: View {
+    @Bindable private var updates = Updates.shared
+
+    var body: some View {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? ""
+        Pane {
+            Row("Check for Updates") {
+                Toggle("Automatically", isOn: $updates.checksAutomatically)
+                Toggle("Download and install new versions automatically", isOn: $updates.installsAutomatically)
+                    .disabled(!updates.checksAutomatically)
+                Button("Check Now") { updates.check() }.disabled(!updates.canCheck)
+                Note("Updates install when TAUdo quits.")
+            }
+            Rule()
+            Row("Version") {
+                Text(verbatim: "TAUdo \(version)").textSelection(.enabled)
+                Link("TAUdo on GitHub", destination: URL(string: "https://github.com/tom-bleher/TAUdo")!).font(.callout)
+            }
+        }
+    }
+}
+
+// MARK: Import
 
 struct ImportSheet: View {
     @Environment(AppModel.self) private var model
@@ -258,6 +390,8 @@ struct ImportSheet: View {
         .padding(20).frame(width: 480)
     }
 }
+
+// MARK: Courses
 
 /// Courses on one side, the selected course's details on the other.
 struct CoursesSettings: View {
@@ -305,7 +439,7 @@ struct CoursesSettings: View {
                 }
                 .buttonStyle(.borderless).padding(4)
             }
-            .frame(width: 190)
+            .frame(width: 180)
             .background(Color.primary.opacity(0.03))
             Divider()
             if let i = model.data.courses.firstIndex(where: { $0.id == selected }) {
@@ -316,7 +450,7 @@ struct CoursesSettings: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(height: 500)
+        .frame(width: SettingsView.width, height: 430)
         .confirmationDialog(Text("Delete “\(deleting?.name ?? "")”?"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Delete course", role: .destructive) {
                 model.data.courses.removeAll { $0.id == deleting?.id }
@@ -328,64 +462,84 @@ struct CoursesSettings: View {
 
     private func detail(_ course: Binding<Course>) -> some View {
         let c = course.wrappedValue
-        return Form {
-            Section {
-                TextField("Name", text: course.name)
-                Picker("Moodle course", selection: course.moodleKey) {
-                    Text("None").tag(String?.none)
-                    ForEach(moodleCourses, id: \.self) { Text(verbatim: $0).tag(Optional($0)) }
-                    if let k = c.moodleKey, !moodleCourses.contains(k) { Text(verbatim: k).tag(Optional(k)) }
-                }
-                Picker("Pace", selection: course.pace) {
-                    ForEach(Pace.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                if c.pace == .selfStudy {
-                    DatePicker("Finish by", selection: Binding(get: { c.targetDate ?? model.data.settings.semesterEnd },
-                                                               set: { course.wrappedValue.targetDate = $0 }), displayedComponents: .date)
-                }
-            }
-            Section {
-                VStack(spacing: 8) {
-                    HStack(spacing: Col.gap) {
-                        Text("Row").frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Type").frame(width: Col.type, alignment: .leading)
-                        Text("Items").frame(width: Col.number, alignment: .leading)
-                        Text("Per week").frame(width: Col.number, alignment: .leading)
-                        Color.clear.frame(width: Col.remove, height: 1)
+        return ScrollView {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 12) {
+                field("Name") { TextField("Name", text: course.name).labelsHidden().textFieldStyle(.roundedBorder) }
+                field("Moodle Course") {
+                    Picker("Moodle Course", selection: course.moodleKey) {
+                        Text("None").tag(String?.none)
+                        ForEach(moodleCourses, id: \.self) { Text(verbatim: $0).tag(Optional($0)) }
+                        if let k = c.moodleKey, !moodleCourses.contains(k) { Text(verbatim: k).tag(Optional(k)) }
                     }
-                    .font(.caption).foregroundStyle(.secondary)
-                    ForEach(course.tracks) { $t in
-                        HStack(spacing: Col.gap) {
-                            TextField("Row", text: $t.name).labelsHidden().textFieldStyle(.roundedBorder).frame(maxWidth: .infinity)
-                            Picker("Type", selection: $t.kind) { ForEach(TrackKind.allCases, id: \.self) { Text($0.label).tag($0) } }
-                                .labelsHidden().frame(width: Col.type, alignment: .leading)
-                            number($t.count, in: 0...60)
-                            number($t.perWeek, in: 0...7).help(Text("Class sessions per week, to estimate where the class is"))
-                            Button { course.wrappedValue.tracks.removeAll { $0.id == t.id } } label: { Image(systemName: "minus.circle") }
-                                .buttonStyle(.borderless).foregroundStyle(.secondary).frame(width: Col.remove)
-                        }
+                    .labelsHidden()
+                }
+                field("Pace") {
+                    Picker("Pace", selection: course.pace) {
+                        ForEach(Pace.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden()
+                    if c.pace == .selfStudy {
+                        DatePicker("Finish by", selection: Binding(get: { c.targetDate ?? model.data.settings.semesterEnd },
+                                                                   set: { course.wrappedValue.targetDate = $0 }), displayedComponents: .date)
+                            .fixedSize()
                     }
                 }
-                Button("Add row") { course.wrappedValue.tracks.append(Track(name: String(localized: "Row"), kind: .other, count: 13, perWeek: 1)) }
-            } header: { Text("Rows") } footer: {
-                Text("⌥-click a cube in the menu bar panel to say where the class is now. The class keeps advancing from there.").footnote()
+                field("Folder") {
+                    HStack {
+                        TextField("Folder", text: Binding(get: { c.folder ?? "" }, set: { course.wrappedValue.folder = $0.isEmpty ? nil : $0 }),
+                                  prompt: Text(model.data.settings.courseworkFolder.isEmpty ? "" : (model.data.settings.courseworkFolder as NSString).appendingPathComponent(c.name)))
+                            .labelsHidden().textFieldStyle(.roundedBorder)
+                            .onSubmit { Task { await model.scanFiles() } }
+                        Button("Choose…") { if let p = FolderPicker.choose() { course.wrappedValue.folder = p; Task { await model.scanFiles() } } }
+                    }
+                }
+                Divider().gridCellUnsizedAxes(.horizontal).padding(.vertical, 2)
+                // The rows table needs the full width, so it sits under its heading instead of beside it.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Rows").fontWeight(.semibold)
+                    rows(course)
+                }
             }
-            Section {
-                HStack {
-                    TextField("Folder", text: Binding(get: { c.folder ?? "" }, set: { course.wrappedValue.folder = $0.isEmpty ? nil : $0 }),
-                              prompt: Text(model.data.settings.courseworkFolder.isEmpty ? "" : (model.data.settings.courseworkFolder as NSString).appendingPathComponent(c.name)))
-                        .onSubmit { Task { await model.scanFiles() } }
-                    Button("Choose…") { if let p = FolderPicker.choose() { course.wrappedValue.folder = p; Task { await model.scanFiles() } } }
+            .padding(.horizontal, 20).padding(.vertical, 18)
+        }
+    }
+
+    private func field<C: View>(_ label: LocalizedStringKey, @ViewBuilder content: () -> C) -> some View {
+        GridRow {
+            Text(label).fontWeight(.semibold).gridColumnAlignment(.trailing)
+            VStack(alignment: .leading, spacing: 7) { content() }.frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder private func rows(_ course: Binding<Course>) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: Col.gap) {
+                Text("Name").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Type").frame(width: Col.type, alignment: .leading)
+                Text("Items").frame(width: Col.number, alignment: .leading)
+                Text("Per week").frame(width: Col.number, alignment: .leading)
+                Color.clear.frame(width: Col.remove, height: 1)
+            }
+            .font(.caption).foregroundStyle(.secondary)
+            ForEach(course.tracks) { $t in
+                HStack(spacing: Col.gap) {
+                    TextField("Row", text: $t.name).labelsHidden().textFieldStyle(.roundedBorder).frame(maxWidth: .infinity)
+                    Picker("Type", selection: $t.kind) { ForEach(TrackKind.allCases, id: \.self) { Text($0.label).tag($0) } }
+                        .labelsHidden().frame(width: Col.type, alignment: .leading)
+                    number($t.count, in: 0...60)
+                    number($t.perWeek, in: 0...7).help(Text("Class sessions per week, to estimate where the class is"))
+                    Button { course.wrappedValue.tracks.removeAll { $0.id == t.id } } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless).foregroundStyle(.secondary).frame(width: Col.remove)
                 }
             }
         }
-        .formStyle(.grouped)
+        Button("Add row") { course.wrappedValue.tracks.append(Track(name: String(localized: "Row"), kind: .other, count: 13, perWeek: 1)) }
+        Note("⌥-click a cube in the menu bar panel to say where the class is now. The class keeps advancing from there.")
     }
 }
 
 private enum Col {
-    static let gap: CGFloat = 10, type: CGFloat = 112, number: CGFloat = 62, remove: CGFloat = 18
+    static let gap: CGFloat = 8, type: CGFloat = 104, number: CGFloat = 58, remove: CGFloat = 18
 }
 
 /// A number with a stepper, sized for a table column.
@@ -397,13 +551,20 @@ private func number(_ value: Binding<Int>, in range: ClosedRange<Int>) -> some V
     .frame(width: Col.number, alignment: .leading)
 }
 
+// MARK: Exams
+
 struct ExamsSettings: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         @Bindable var m = model
-        Form {
-            Section {
+        Pane {
+            Row("Exam Dates") {
+                Toggle("Add exam dates from Arazim", isOn: $m.data.settings.fetchExams)
+                Note("From the public course list at arazim-project.com, once a day. Nothing about you is sent.")
+            }
+            Rule()
+            Row("My Own") {
                 ForEach($m.data.manual) { $x in
                     HStack {
                         TextField("Title", text: $x.title, prompt: Text("Title")).labelsHidden().textFieldStyle(.roundedBorder)
@@ -411,20 +572,20 @@ struct ExamsSettings: View {
                             Text("No course").tag(UUID?.none)
                             ForEach(model.data.courses) { Text($0.name).tag(Optional($0.id)) }
                         }
-                        .labelsHidden().frame(width: 170)
-                        DatePicker("Due", selection: $x.due).labelsHidden()
+                        .labelsHidden().frame(width: 116)
+                        DatePicker("Due", selection: $x.due).labelsHidden().fixedSize()
                         Button { model.data.manual.removeAll { $0.id == x.id } } label: { Image(systemName: "minus.circle") }
                             .buttonStyle(.borderless).foregroundStyle(.secondary)
                     }
                 }
                 Button("Add exam or deadline") {
-                    model.data.manual.append(ManualDeadline(title: String(localized: "Exam"), due: Calendar.current.startOfDay(for: .now).addingTimeInterval(14 * 86400 + 9 * 3600), courseID: model.data.courses.first?.id))
+                    model.addDeadline(title: String(localized: "Exam"), due: ManualDeadline.suggestedDue(), courseID: model.data.courses.first?.id)
                 }
-            } footer: {
-                Text("Exam dates come from Arazim automatically. Add other exams and deadlines that aren't on Moodle here: they show up in the menu bar, reminders and the calendar like Moodle deadlines.").footnote()
+                Note("Exams and deadlines that aren't on Moodle. They show up in the menu bar, the reminders and the calendar like Moodle deadlines.")
             }
         }
-        .settingsForm()
         .onChange(of: model.data.manual) { model.push() }
+        // Turned on: fetch the dates now instead of at the next hourly refresh.
+        .onChange(of: model.data.settings.fetchExams) { if model.data.settings.fetchExams { Task { await model.refresh() } } }
     }
 }

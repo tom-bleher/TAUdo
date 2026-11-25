@@ -81,6 +81,7 @@ final class AppModel {
         // New users are asked in the welcome window; existing ones at launch (asks only once).
         if data.settings.notifications && data.onboarded { Task { _ = await Notifier.requestAuthorization() } }
         if !persist { Task { await scanFiles() } }
+        Notifier.sound = data.settings.notificationSound
         push()
     }
 
@@ -127,7 +128,7 @@ final class AppModel {
     /// Exam dates from Arazim, fetched at most daily (the catalog is a few MB).
     /// On failure the last known dates stay.
     private func refreshExams() async {
-        guard data.examsFetched.map({ Date().timeIntervalSince($0) > 86400 }) ?? true else { return }
+        guard data.settings.fetchExams, data.examsFetched.map({ Date().timeIntervalSince($0) > 86400 }) ?? true else { return }
         let keys = Set(data.courses.compactMap(\.moodleKey)).union(data.moodleCourseKeys)
         guard !keys.isEmpty else { return }
         let url = Arazim.catalogURL(semesterStart: data.settings.semesterStart)
@@ -204,7 +205,7 @@ final class AppModel {
         guard let p = MoodleConnect.payload(from: url), URL(string: p.base)?.host == moodleHost else { return }
         guard p.key == data.settings.syncKey else {
             Notifier.post(String(localized: "This TAUdo bookmark is out of date"),
-                          String(localized: "Install it again from the ⋯ menu › Install sync bookmark…"), id: "bookmark.stale")
+                          String(localized: "Install it again from Settings › Moodle › Install sync bookmark…"), id: "bookmark.stale")
             return
         }
         data.settings.moodleBaseURL = p.base
@@ -278,6 +279,7 @@ final class AppModel {
             try? await Task.sleep(for: .milliseconds(800))
             guard let self, !Task.isCancelled, persist else { return }
             let s = data.settings
+            Notifier.sound = s.notificationSound
             // With calendar sync working, the calendar's alerts remind you (and reach your iPhone via iCloud).
             // If it failed, TAUdo's own reminders do.
             var calendarReminds = false
@@ -365,7 +367,12 @@ final class AppModel {
 
     var menuLabel: MenuLabel {
         if panelOpen { return frozenLabel }
-        return MenuLabel(overdue: overdueCount, title: data.settings.menuBarShowsNext ? next.map(menuTitle) : nil)
+        let title: String? = switch data.settings.menuBar {
+        case .icon: nil
+        case .timeLeft: next.map { Self.remaining($0.due, now: now) }
+        case .deadline: next.map(menuTitle)
+        }
+        return MenuLabel(overdue: overdueCount, title: title)
     }
 
     func panelDidOpen() { frozenLabel = menuLabel; panelOpen = true }
@@ -403,13 +410,37 @@ final class AppModel {
         push()
     }
 
-    /// "Not my course": its deadlines stop showing (undo in Settings › Courses).
+    /// "Not my course": its deadlines stop showing (undo in Settings › Moodle).
     func ignore(moodleCourse key: String) {
         data.ignoredCourseKeys.insert(key)
         push()
     }
 
     func finishOnboarding() { data.onboarded = true }
+
+    /// Moodle courses you said aren't yours that still have events in the feed (last year's don't count).
+    var hiddenCourseCount: Int {
+        data.ignoredCourseKeys.intersection(data.events.compactMap(\.courseKey)).count
+    }
+
+    /// Deadlines hidden one by one with "Hide (not mine)" that are still in the feed.
+    var hiddenDeadlineCount: Int { data.hiddenUIDs.intersection((data.events + data.exams).map(\.uid)).count }
+
+    func showHiddenDeadlines() {
+        data.hiddenUIDs = []
+        push()
+    }
+
+    func show(moodleCourse key: String) {
+        data.ignoredCourseKeys.remove(key)
+        push()
+    }
+
+    /// An exam or deadline of your own, added from the panel or Settings.
+    func addDeadline(title: String, due: Date, courseID: UUID?) {
+        data.manual.append(ManualDeadline(title: title, due: due, courseID: courseID))
+        push()
+    }
 
     func link(_ key: String, to courseID: UUID) {
         guard let i = data.courses.firstIndex(where: { $0.id == courseID }) else { return }

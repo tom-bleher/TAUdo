@@ -50,5 +50,37 @@
 			<string>Saved %1$lld files from %2$@</string>
 		</dict>
 	</dict>
+	<key>%lld hidden courses</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@v@</string>
+		<key>v</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 hidden course</string>
+			<key>other</key>
+			<string>%1$lld hidden courses</string>
+		</dict>
+	</dict>
+	<key>%lld hidden deadlines</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@v@</string>
+		<key>v</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 hidden deadline</string>
+			<key>other</key>
+			<string>%1$lld hidden deadlines</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

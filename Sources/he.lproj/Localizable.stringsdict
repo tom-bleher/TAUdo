@@ -50,5 +50,37 @@
 			<string>נשמרו %1$lld קבצים מהקורס %2$@</string>
 		</dict>
 	</dict>
+	<key>%lld hidden courses</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@v@</string>
+		<key>v</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>קורס מוסתר אחד</string>
+			<key>other</key>
+			<string>%1$lld קורסים מוסתרים</string>
+		</dict>
+	</dict>
+	<key>%lld hidden deadlines</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@v@</string>
+		<key>v</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>מועד מוסתר אחד</string>
+			<key>other</key>
+			<string>%1$lld מועדים מוסתרים</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

@@ -63,7 +63,7 @@ extension AppData {
             guard let hw = courses[ci].tracks.firstIndex(where: { $0.kind == .homework }) else { continue }
             for (i, e) in homeworkLinks(course: ci) { linked[e.uid] = (ci, hw, i) }
         }
-        let exams = self.exams.filter { !($0.courseKey.map(ignoredCourseKeys.contains) ?? false) }
+        let exams = settings.fetchExams ? self.exams.filter { !($0.courseKey.map(ignoredCourseKeys.contains) ?? false) } : []
         let moodle = (problemSets + exams).filter { !hiddenUIDs.contains($0.uid) }.map { e in
             // Done means submitted (ticked here or reported by Moodle), not "solved": when you study ahead,
             // a cube can be done long before this year's deadline is handed in.

@@ -131,6 +131,18 @@ struct Course: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// What the menu bar shows next to the icon.
+enum MenuBarContent: String, Codable, CaseIterable, Sendable {
+    /// The icon alone.
+    case icon
+    /// Time left until the next deadline ("2d").
+    case timeLeft
+    /// The next deadline and the time left ("Calculus HW 4 · 2d").
+    case deadline
+
+    init(from d: Decoder) throws { self = Self(rawValue: try d.singleValueContainer().decode(String.self)) ?? .deadline }
+}
+
 struct Settings: Codable, Hashable, Sendable {
     var exportURL: String = ""
     /// The current academic year lives at the root; past years move to /<year>.
@@ -156,10 +168,17 @@ struct Settings: Codable, Hashable, Sendable {
     var syncKey: String = UUID().uuidString
     /// List deadlines that have already passed (hidden by default).
     var showOverdue: Bool = false
-    /// Show the next open deadline ("Calculus HW 4 · 2d") next to the menu bar icon.
-    var menuBarShowsNext: Bool = true
+    /// What sits next to the menu bar icon.
+    var menuBar: MenuBarContent = .deadline
+    /// Deadlines listed in the panel before "more…".
+    var listLimit: Int = 8
+    /// Add exam dates from Arazim's public course catalog.
+    var fetchExams: Bool = true
+    var notificationSound: Bool = true
 
     init() {}
+
+    private enum LegacyKeys: String, CodingKey { case menuBarShowsNext }
 
     static func day(_ y: Int, _ m: Int, _ d: Int) -> Date {
         var cal = Calendar(identifier: .gregorian); cal.timeZone = ICS.defaultTimeZone
@@ -182,7 +201,12 @@ struct Settings: Codable, Hashable, Sendable {
         reminderMinutes = try c.decodeIfPresent([Int].self, forKey: .reminderMinutes) ?? z.reminderMinutes
         alertChanges = try c.decodeIfPresent(Bool.self, forKey: .alertChanges) ?? z.alertChanges
         digestHour = c.contains(.digestHour) ? try c.decodeIfPresent(Int.self, forKey: .digestHour) : z.digestHour
-        menuBarShowsNext = try c.decodeIfPresent(Bool.self, forKey: .menuBarShowsNext) ?? z.menuBarShowsNext
+        // Before 0.3 this was a switch ("menuBarShowsNext"): off meant the icon alone.
+        let legacy = try d.container(keyedBy: LegacyKeys.self).decodeIfPresent(Bool.self, forKey: .menuBarShowsNext)
+        menuBar = try c.decodeIfPresent(MenuBarContent.self, forKey: .menuBar) ?? (legacy == false ? .icon : z.menuBar)
+        listLimit = try c.decodeIfPresent(Int.self, forKey: .listLimit) ?? z.listLimit
+        fetchExams = try c.decodeIfPresent(Bool.self, forKey: .fetchExams) ?? z.fetchExams
+        notificationSound = try c.decodeIfPresent(Bool.self, forKey: .notificationSound) ?? z.notificationSound
         showOverdue = try c.decodeIfPresent(Bool.self, forKey: .showOverdue) ?? z.showOverdue
         courseworkFolder = try c.decodeIfPresent(String.self, forKey: .courseworkFolder) ?? z.courseworkFolder
         syncKey = try c.decodeIfPresent(String.self, forKey: .syncKey) ?? z.syncKey
@@ -241,6 +265,11 @@ struct ManualDeadline: Codable, Identifiable, Hashable, Sendable {
     var courseID: UUID?
 
     var uid: String { "manual-\(id.uuidString)" }
+
+    /// A starting date for a new one: two weeks from today at 9:00.
+    static func suggestedDue(now: Date = .now, calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: now).addingTimeInterval(14 * 86400 + 9 * 3600)
+    }
 }
 
 /// Everything persisted to ~/Library/Application Support/TAUdo/state.json.
