@@ -71,6 +71,10 @@ struct GeneralSettings: View {
                 .fixedSize()
                 Note("These dates set where the class marker is in each course.")
             }
+            Row("Self-study") {
+                Toggle("Let courses be self-study", isOn: $m.data.settings.selfStudy)
+                Note("Set per course under Courses: your own pace toward a finish date.")
+            }
             Rule()
             Row("Data") {
                 HStack {
@@ -473,7 +477,7 @@ struct CoursesSettings: View {
                     }
                     .labelsHidden()
                 }
-                field("Pace") {
+                if model.data.settings.selfStudy { field("Pace") {
                     Picker("Pace", selection: course.pace) {
                         ForEach(Pace.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
@@ -483,7 +487,7 @@ struct CoursesSettings: View {
                                                                    set: { course.wrappedValue.targetDate = $0 }), displayedComponents: .date)
                             .fixedSize()
                     }
-                }
+                } }
                 field("Folder") {
                     HStack {
                         TextField("Folder", text: Binding(get: { c.folder ?? "" }, set: { course.wrappedValue.folder = $0.isEmpty ? nil : $0 }),

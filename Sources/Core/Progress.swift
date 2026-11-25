@@ -160,7 +160,7 @@ enum Pacing {
 
     /// Where you should be: the class position, or for self-study a straight line to the target date.
     static func plannedPosition(_ t: Track, course: Course, classPos: Int, settings s: Settings, now: Date) -> Int {
-        guard course.pace == .selfStudy else { return classPos }
+        guard s.selfStudy, course.pace == .selfStudy else { return classPos }
         let target = course.targetDate ?? s.semesterEnd
         guard target > s.semesterStart else { return t.count }
         let f = min(1, max(0, now.timeIntervalSince(s.semesterStart) / target.timeIntervalSince(s.semesterStart)))

@@ -10,6 +10,7 @@ enum Demo {
             .standard("אלגברה לינארית לפיזיקה", lectures: "dddddddddd", recitations: "ddd", homework: "ddd"),
         ])
         d.onboarded = true
+        d.settings.selfStudy = true
         let keys = ["0321213001 - שיטות בפיזיקה עיונית 1", "0321210501 - מכניקה אנליטית",
                     "0366110001 - חשבון דיפרנציאלי ואינטגרלי 1א לפיזיקה", "0321110001 - אלגברה לינארית לפיזיקה"]
         for i in d.courses.indices { d.courses[i].moodleKey = keys[i] }

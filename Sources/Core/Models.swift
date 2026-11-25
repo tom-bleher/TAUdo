@@ -175,6 +175,8 @@ struct Settings: Codable, Hashable, Sendable {
     /// Add exam dates from Arazim's public course catalog.
     var fetchExams: Bool = true
     var notificationSound: Bool = true
+    /// Lets courses be studied at your own pace instead of with the class (off: every course follows the class).
+    var selfStudy: Bool = false
 
     init() {}
 
@@ -208,6 +210,7 @@ struct Settings: Codable, Hashable, Sendable {
         fetchExams = try c.decodeIfPresent(Bool.self, forKey: .fetchExams) ?? z.fetchExams
         notificationSound = try c.decodeIfPresent(Bool.self, forKey: .notificationSound) ?? z.notificationSound
         showOverdue = try c.decodeIfPresent(Bool.self, forKey: .showOverdue) ?? z.showOverdue
+        selfStudy = try c.decodeIfPresent(Bool.self, forKey: .selfStudy) ?? z.selfStudy
         courseworkFolder = try c.decodeIfPresent(String.self, forKey: .courseworkFolder) ?? z.courseworkFolder
         syncKey = try c.decodeIfPresent(String.self, forKey: .syncKey) ?? z.syncKey
     }
@@ -221,6 +224,9 @@ extension AppData {
         var isDir: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue ? url : nil
     }
+
+    /// The course's pace: with the class unless self-study is turned on.
+    func pace(_ c: Course) -> Pace { settings.selfStudy ? c.pace : .withClass }
 
     /// The course's Panopto recordings (from its linked Moodle course).
     func recordings(for c: Course) -> [Recording] {
@@ -309,10 +315,16 @@ struct AppData: Codable, Sendable {
 
     init(courses: [Course]) { self.courses = courses }
 
+    private enum SettingKeys: String, CodingKey { case selfStudy }
+
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
         courses = try c.decodeIfPresent([Course].self, forKey: .courses) ?? []
         settings = try c.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
+        // Before the setting existed self-study was always available: keep it on for anyone already using it.
+        if (try? c.nestedContainer(keyedBy: SettingKeys.self, forKey: .settings))?.contains(.selfStudy) != true {
+            settings.selfStudy = courses.contains { $0.pace == .selfStudy }
+        }
         events = try c.decodeIfPresent([MoodleEvent].self, forKey: .events) ?? []
         lastSync = try c.decodeIfPresent(Date.self, forKey: .lastSync)
         exams = try c.decodeIfPresent([MoodleEvent].self, forKey: .exams) ?? []

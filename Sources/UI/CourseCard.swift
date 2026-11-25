@@ -18,7 +18,7 @@ struct CourseCard: View {
             HStack(spacing: 6) {
                 Circle().fill(Palette.course(ci)).frame(width: 8, height: 8)
                 Text(course.name).font(.callout.weight(.semibold)).lineLimit(1)
-                if course.pace == .selfStudy { Tag(text: Text("self-study")) }
+                if model.data.pace(course) == .selfStudy { Tag(text: Text("self-study")) }
                 Spacer(minLength: 8)
                 lead(course)
                 Text(verbatim: "\(total == 0 ? 0 : 100 * done / total)%").font(.caption.monospacedDigit()).foregroundStyle(.secondary)

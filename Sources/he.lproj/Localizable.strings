@@ -252,3 +252,5 @@
 "Done · opening TAUdo" = "מוכן · פותח את TAUdo";
 "Downloading files {n}/{total}" = "מוריד קבצים {n}/{total}";
 "{n} files on their way · opening TAUdo" = "{n} קבצים בדרך · פותח את TAUdo";
+"Let courses be self-study" = "לאפשר קורסים בלימוד עצמי";
+"Set per course under Courses: your own pace toward a finish date." = "נקבע לכל קורס בחלונית הקורסים: בקצב שלך עד תאריך סיום.";

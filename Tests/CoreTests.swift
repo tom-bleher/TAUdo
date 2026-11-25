@@ -120,9 +120,20 @@ final class ProgressTests: XCTestCase {
         var s = Settings()
         s.semesterStart = Settings.day(2026, 10, 1)
         c.targetDate = Settings.day(2026, 10, 11)
+        XCTAssertEqual(Pacing.plannedPosition(t, course: c, classPos: 3, settings: s, now: Settings.day(2026, 10, 6)), 3, "self-study off")
+        s.selfStudy = true
         XCTAssertEqual(Pacing.plannedPosition(t, course: c, classPos: 3, settings: s, now: Settings.day(2026, 10, 6)), 5)
         c.pace = .withClass
         XCTAssertEqual(Pacing.plannedPosition(t, course: c, classPos: 3, settings: s, now: Settings.day(2026, 10, 6)), 3)
+    }
+
+    func testSelfStudySettingMigrates() throws {
+        let raw = { (pace: String, setting: String) in
+            Data(#"{"settings":{\#(setting)},"courses":[{"name":"X","pace":"\#(pace)","tracks":[]}]}"#.utf8)
+        }
+        XCTAssertTrue(try JSONDecoder().decode(AppData.self, from: raw("selfStudy", "")).settings.selfStudy, "already in use: stays on")
+        XCTAssertFalse(try JSONDecoder().decode(AppData.self, from: raw("withClass", "")).settings.selfStudy)
+        XCTAssertFalse(try JSONDecoder().decode(AppData.self, from: raw("selfStudy", #""selfStudy":false"#)).settings.selfStudy, "explicit off wins")
     }
 }
 
