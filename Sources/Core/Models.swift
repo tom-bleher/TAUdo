@@ -162,7 +162,7 @@ struct Settings: Codable, Hashable, Sendable {
     var alertChanges: Bool = true
     /// Morning summary of today's and tomorrow's deadlines (hour of day; nil = off).
     var digestHour: Int? = 8
-    /// Folder holding one subfolder per course (named like the course), for opening lecture videos, psets, …
+    /// Folder holding one subfolder per course (named like the course), for opening pset folders and recitation notes.
     var courseworkFolder: String = ""
     /// Secret baked into the sync bookmark, so other web pages can't send taudo://sync data.
     var syncKey: String = UUID().uuidString
@@ -220,6 +220,11 @@ extension AppData {
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
         var isDir: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue ? url : nil
+    }
+
+    /// The course's Panopto recordings (from its linked Moodle course).
+    func recordings(for c: Course) -> [Recording] {
+        c.moodleKey.flatMap { recordings[$0] } ?? []
     }
 
     /// Display name for a Moodle course key: the linked course, else Moodle's full name, else the key.
@@ -299,6 +304,8 @@ struct AppData: Codable, Sendable {
     var moodleCourseNames: [String: String] = [:]
     /// Last time the TAUdo sync bookmarklet reported submission status.
     var lastStatusCheck: Date?
+    /// Panopto recordings by Moodle course shortname (sent by the sync bookmark).
+    var recordings: [String: [Recording]] = [:]
 
     init(courses: [Course]) { self.courses = courses }
 
@@ -320,6 +327,7 @@ struct AppData: Codable, Sendable {
         onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? !courses.isEmpty
         lastStatusCheck = try c.decodeIfPresent(Date.self, forKey: .lastStatusCheck)
         moodleCourseNames = try c.decodeIfPresent([String: String].self, forKey: .moodleCourseNames) ?? [:]
+        recordings = try c.decodeIfPresent([String: [Recording]].self, forKey: .recordings) ?? [:]
     }
 
     /// A fresh install starts empty; the welcome window creates courses from Moodle.

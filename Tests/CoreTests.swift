@@ -221,8 +221,7 @@ final class CourseFilesTests: XCTestCase {
         XCTAssertEqual(f.urls(.homework, 7).map(\.lastPathComponent), ["pset7"])
         XCTAssertEqual(f.urls(.homework, 10).count, 1)
         XCTAssertTrue(f.urls(.homework, 1).isEmpty, "_to_delete is skipped")
-        XCTAssertEqual(f.urls(.lecture, 3).map(\.pathExtension), ["mkv"], "notes PDFs aren't lectures")
-        XCTAssertEqual(f.urls(.lecture, 4).count, 1)
+        XCTAssertNil(f.items[.lecture], "recordings open on Panopto, not from disk")
         XCTAssertEqual(f.urls(.recitation, 2).count, 1)
         XCTAssertTrue(f.codes.contains("0366110001"))
 
@@ -523,5 +522,31 @@ final class DownloadSafetyTests: XCTestCase {
         let due = at(3, 23, 29), day = at(3, 0, 0)
         let fire = AllDay.alarms(leadMinutes: [1440, 180], due: due, day: day).map { day.addingTimeInterval(-$0) }
         XCTAssertEqual(fire, [at(2, 23, 29), at(3, 20, 29)])
+    }
+}
+
+final class RecordingTests: XCTestCase {
+    private func rec(_ name: String, _ host: String = "tau.cloud.panopto.eu") -> Recording {
+        Recording(name: name, url: URL(string: "https://\(host)/Panopto/Pages/Viewer.aspx?id=\(UUID().uuidString)")!)
+    }
+
+    func testNumbersAndKinds() {
+        XCTAssertEqual(Recordings.number("07 - מכניקה אנליטית - תרגול 07"), 7)
+        XCTAssertEqual(Recordings.number("שיטות בפיזיקה עיונית 1 - הרצאה 12"), 12, "the keyword beats the course's number")
+        XCTAssertEqual(Recordings.number("Lecture #3 (2026-11-03)"), 3)
+        XCTAssertEqual(Recordings.number("שיעור 04"), 4)
+        XCTAssertNil(Recordings.number("שיטות בפיזיקה עיונית 1 - 03/11/2026"), "a date isn't a session number")
+        XCTAssertNil(Recordings.number("0366110001 - חשבון דיפרנציאלי"))
+        XCTAssertEqual(Recordings.kind("07 - מכניקה אנליטית - תרגול 07"), .recitation)
+        XCTAssertEqual(Recordings.kind("Tutorial 2"), .recitation)
+        XCTAssertEqual(Recordings.kind("הרצאה 5"), .lecture)
+    }
+
+    func testByCubeAndOrder() {
+        let list = [rec("תרגול 2"), rec("הרצאה 10"), rec("הרצאה 2"), rec("סיכום הקורס"), rec("הרצאה 2 - חלק ב")]
+        let m = Recordings.byCube(list)
+        XCTAssertEqual(m[.lecture]?[2]?.map(\.name), ["הרצאה 2", "הרצאה 2 - חלק ב"])
+        XCTAssertEqual(m[.recitation]?[2]?.count, 1)
+        XCTAssertEqual(Recordings.sorted(list).map(\.name), ["הרצאה 2", "הרצאה 2 - חלק ב", "הרצאה 10", "תרגול 2", "סיכום הקורס"])
     }
 }

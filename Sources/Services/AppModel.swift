@@ -15,7 +15,7 @@ final class AppModel {
     var calendarChoices: [CalendarSync.Choice] = []
     /// Set while waiting for the export link to be copied in the browser.
     var connectStatus: String?
-    /// Files behind each course's cubes (lecture videos, pset folders, …), by course id.
+    /// Files behind each course's cubes (pset folders, recitation notes), by course id.
     var files: [UUID: CourseFiles] = [:]
     /// Set if the saved state couldn't be read at launch.
     var loadError: String?

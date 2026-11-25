@@ -1,7 +1,8 @@
 import Foundation
 
 /// Finds the files behind each cube in a course folder, e.g.
-/// `psets/pset7` → Homework 7, `videos/שיעור 03.mp4` → Lecture 3, `recitations/rec3.pdf` → Recitation 3.
+/// `psets/pset7` → Homework 7, `recitations/rec3.pdf` → Recitation 3.
+/// Recordings aren't looked for here: cubes open them on Panopto (see Recordings).
 struct CourseFiles: Sendable, Equatable {
     var items: [TrackKind: [Int: [URL]]] = [:]
     /// Long digit runs in file names (TAU course codes like 0366110001), for linking Moodle courses.
@@ -9,7 +10,6 @@ struct CourseFiles: Sendable, Equatable {
 
     func urls(_ kind: TrackKind, _ number: Int) -> [URL] { items[kind]?[number] ?? [] }
 
-    static let media: Set<String> = ["mp4", "mkv", "mov", "m4v", "webm"]
     private static let skip: Set<String> = ["_to_delete", "build", "node_modules", "scripts", "textbooks", "transcriptions", "boards", "work", "info"]
 
     /// Which row a path belongs to, from its folder names.
@@ -18,7 +18,6 @@ struct CourseFiles: Sendable, Equatable {
             let c = c.lowercased()
             if c.hasPrefix("pset") || c.hasPrefix("hw") || c.hasPrefix("homework") || c.hasPrefix("תרגילי") { return .homework }
             if c.hasPrefix("recitation") || c.hasPrefix("tutorial") || c.hasPrefix("תרגול") { return .recitation }
-            if c.hasPrefix("video") || c.hasPrefix("lecture") || c.hasPrefix("הרצא") { return .lecture }
         }
         return nil
     }
@@ -48,11 +47,10 @@ struct CourseFiles: Sendable, Equatable {
             // A homework item is its pset folder (statement, your .lyx and solution PDF live inside).
             case .homework:
                 guard isDir, rel.count >= 2 else { continue }
-            // Lectures are recordings; lecture notes and boards are noise here.
-            case .lecture:
-                guard !isDir, media.contains(ext) else { continue }
-            case .recitation, .other:
-                guard !isDir, ["pdf", "mp4", "mkv", "mov"].contains(ext) else { continue }
+            case .recitation:
+                guard !isDir, ext == "pdf" else { continue }
+            case .lecture, .other:
+                continue
             }
             out.items[kind, default: [:]][n, default: []].append(url)
         }

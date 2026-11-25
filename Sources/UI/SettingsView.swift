@@ -161,7 +161,7 @@ struct MoodleSettings: View {
                         .onSubmit { Task { await model.scanFiles() } }
                     Button("Choose…") { if let p = FolderPicker.choose() { model.data.settings.courseworkFolder = p; Task { await model.scanFiles() } } }
                 }
-                Note("One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click).")
+                Note("One subfolder per course, named like the course. Homework and recitation cubes then open their pset folder or notes (⌘-click or right-click).")
             }
             Rule()
             Row("Hidden") { hidden }

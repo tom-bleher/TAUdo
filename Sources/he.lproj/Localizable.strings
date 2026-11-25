@@ -65,7 +65,7 @@
 "Not done" = "לא בוצע";
 "Not synced yet" = "עוד לא סונכרן";
 "Nothing coming up." = "אין מועדים קרובים.";
-"One subfolder per course, named like the course. Cubes then open their lecture video, pset folder or recitation (⌘-click or right-click)." = "תיקייה לכל קורס, בשם הקורס. כך הקוביות פותחות את ההקלטה, את תיקיית התרגיל או את קובץ התרגול (⌘-לחיצה או לחיצה ימנית).";
+"One subfolder per course, named like the course. Homework and recitation cubes then open their pset folder or notes (⌘-click or right-click)." = "תיקייה לכל קורס, בשם הקורס. כך קוביות של שיעורי בית ותרגולים פותחות את תיקיית התרגיל או את קובץ התרגול (⌘-לחיצה או לחיצה ימנית).";
 "Open %@" = "פתיחת %@";
 "Open Moodle in browser" = "פתיחת Moodle בדפדפן";
 "Open course folder" = "פתיחת תיקיית הקורס";
@@ -110,7 +110,7 @@
 "Choose…" = "בחירה…";
 "Connected. Deadlines sync on their own." = "מחובר. מועדי ההגשה מסתנכרנים מעצמם.";
 "Course folder (optional)" = "תיקיית קורסים (לא חובה)";
-"If you keep one folder per course, cubes can open lecture recordings, homework folders and recitations." = "אם יש לך תיקייה לכל קורס, הקוביות יכולות לפתוח הקלטות של הרצאות, תיקיות של תרגילים ותרגולים.";
+"If you keep one folder per course, cubes can open your homework folders and recitation notes." = "אם יש לך תיקייה לכל קורס, הקוביות יכולות לפתוח את תיקיות התרגילים ואת קובצי התרגולים שלך.";
 "No Moodle courses with deadlines yet. You can add courses in Settings." = "עדיין אין קורסים ב־Moodle עם מועדי הגשה. אפשר להוסיף קורסים בהגדרות.";
 "No courses yet. Connect Moodle and pick your courses, or add one in Settings." = "אין עדיין קורסים. התחברו ל־Moodle ובחרו את הקורסים שלכם, או הוסיפו קורס בהגדרות.";
 "Not my course" = "לא הקורס שלי";
@@ -239,4 +239,9 @@
 "Mark not done" = "סימון כלא בוצע";
 "Syncing…" = "מסנכרן…";
 
+/* Panopto recordings */
+"Recordings in Panopto" = "הקלטות ב־Panopto";
+"Watch in Panopto" = "צפייה ב־Panopto";
+"Watch “%@” in Panopto" = "צפייה ב״%@״ ב־Panopto";
+"⌘-click: watch in Panopto" = "⌘-לחיצה: צפייה ב־Panopto";
 

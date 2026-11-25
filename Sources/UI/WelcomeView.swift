@@ -54,7 +54,7 @@ struct WelcomeView: View {
                 }
                 Divider().padding(.leading, 50)
                 step(3, done: !model.data.settings.courseworkFolder.isEmpty, title: "Course folder (optional)") {
-                    Text("If you keep one folder per course, cubes can open lecture recordings, homework folders and recitations.")
+                    Text("If you keep one folder per course, cubes can open your homework folders and recitation notes.")
                         .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Button("Choose folder…") { if let p = FolderPicker.choose() { model.data.settings.courseworkFolder = p; Task { await model.scanFiles() } } }
