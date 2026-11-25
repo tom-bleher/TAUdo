@@ -149,7 +149,7 @@
 "Notifications" = "התראות";
 "These dates set where the class marker is in each course." = "לפי התאריכים האלה נקבע איפה הכיתה נמצאת בכל קורס.";
 "Last used %@" = "שימוש אחרון %@";
-"Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files." = "לחיצה על הסימנייה ב־Moodle מסמנת את המטלות שהגשתם. בדף של קורס היא גם מורידה את קובצי הקורס.";
+"Click the bookmark on Moodle to mark the assignments you've submitted and find each course's Panopto recordings. On a course page it also downloads the course's files." = "לחיצה על הסימנייה ב־Moodle מסמנת את המטלות שהגשתם ומוצאת את ההקלטות של כל קורס ב־Panopto. בדף של קורס היא גם מורידה את קובצי הקורס.";
 "1 week" = "שבוע";
 "2 days" = "יומיים";
 "1 day" = "יום";
@@ -244,4 +244,11 @@
 "Watch in Panopto" = "צפייה ב־Panopto";
 "Watch “%@” in Panopto" = "צפייה ב״%@״ ב־Panopto";
 "⌘-click: watch in Panopto" = "⌘-לחיצה: צפייה ב־Panopto";
+"Update your TAUdo bookmark" = "כדאי לעדכן את סימניית TAUdo";
+"The new bookmark also finds each course's Panopto recordings. Install it again from Settings › Moodle." = "הסימנייה החדשה מוצאת גם את ההקלטות של כל קורס ב־Panopto. התקינו אותה מחדש בהגדרות › Moodle.";
 
+/* Sync bookmark badge */
+"Gathering from Moodle…" = "אוסף נתונים מ־Moodle…";
+"Done · opening TAUdo" = "מוכן · פותח את TAUdo";
+"Downloading files {n}/{total}" = "מוריד קבצים {n}/{total}";
+"{n} files on their way · opening TAUdo" = "{n} קבצים בדרך · פותח את TAUdo";

@@ -116,6 +116,8 @@ enum Logo {
     }
 
     private static let ringPaths = tauRings.map { svgPath($0.d, offset: p($0.dx, $0.dy)) }
+    /// The rings' path data, for drawing the logo in SVG (the sync bookmark's badge).
+    static let ringPathData = tauRings.map(\.d)
 
     /// Menu bar template image (follows light/dark menu bar automatically).
     static let menuBarImage: NSImage = {

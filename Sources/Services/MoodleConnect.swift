@@ -10,14 +10,24 @@ enum MoodleConnect {
         var key: String?
         var base: String
         var exportURL: String?
-        /// Moodle event IDs of assignment deadlines in the queried window.
-        var assignIDs: [Int]
-        /// Those Moodle still lists as needing action (not submitted).
-        var pendingIDs: [Int]
+        /// Moodle event IDs of assignment deadlines in the queried window (bookmarks before version 3; newer ones
+        /// leave this to TAUdo, which has the deadlines from the calendar feed).
+        var assignIDs: [Int]?
+        /// Moodle event IDs on Moodle's to-do list (not submitted), as of the click. nil if the list couldn't be read.
+        var pendingIDs: [Int]?
+        /// The window the to-do list covers (Unix time); `pendingUntil` is nil when the list wasn't cut off.
+        var pendingFrom: Int?
+        var pendingUntil: Int?
         /// Course shortname → full name, from Moodle's calendar.
         var courses: [String: String]?
         /// Set when the bookmark was clicked on a course page and you chose to download its files.
         var download: Download?
+        /// Course shortname → its Panopto recordings as [name, viewer URL]. Only courses whose Panopto block answered.
+        var recordings: [String: [[String]]]?
+        /// Bookmark version: 2 and up send recordings. nil from bookmarks installed before that.
+        var v: Int?
+        /// Milliseconds after the click when each part of the sync finished (link, submissions, panopto, download).
+        var took: [String: Int]?
 
         struct Download: Decodable {
             var courseID: Int
@@ -26,7 +36,28 @@ enum MoodleConnect {
             var count: Int
         }
 
-        var submittedIDs: Set<Int> { Set(assignIDs).subtracting(pendingIDs) }
+        /// Assignments Moodle no longer lists as to do: submitted. `feed` supplies the assignment deadlines when the
+        /// bookmark didn't send them. Without a readable to-do list nothing counts as submitted.
+        func submittedIDs(feed: [MoodleEvent]) -> Set<Int> {
+            guard let pendingIDs else { return [] }
+            if let assignIDs { return Set(assignIDs).subtracting(pendingIDs) }
+            guard let from = pendingFrom.map({ Date(timeIntervalSince1970: TimeInterval($0)) }) else { return [] }
+            let until = pendingUntil.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? .distantFuture
+            let assignments = feed.filter { Classifier.isAssignmentDue($0.summary) && $0.start >= from && $0.start <= until }
+            return Set(assignments.compactMap(\.moodleEventID)).subtracting(pendingIDs)
+        }
+
+        /// The recordings that are Panopto viewer links, by course.
+        var validRecordings: [String: [Recording]] {
+            (recordings ?? [:]).mapValues { list in
+                list.prefix(300).compactMap { p in
+                    guard p.count == 2, let url = URL(string: p[1]) else { return nil }
+                    let r = Recording(name: p[0].trimmingCharacters(in: .whitespacesAndNewlines), url: url)
+                    return Recordings.valid(r) ? r : nil
+                }
+            }
+        }
+
     }
 
     /// A usable export link for `host`, or nil (wrong site, not an export link, or the guest account).
@@ -42,7 +73,7 @@ enum MoodleConnect {
               let d = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "d" })?.value
         else { return nil }
         guard d.utf8.count < 200_000, var p = try? JSONDecoder().decode(Payload.self, from: Data(d.utf8)) else { return nil }
-        p.assignIDs = Array(p.assignIDs.prefix(2000)); p.pendingIDs = Array(p.pendingIDs.prefix(2000))
+        p.assignIDs = p.assignIDs.map { Array($0.prefix(2000)) }; p.pendingIDs = p.pendingIDs.map { Array($0.prefix(2000)) }
         return p
     }
 
@@ -82,51 +113,132 @@ enum MoodleConnect {
       }
       const sesskey = M.cfg.sesskey;
       const from = Math.floor(Date.now() / 1000) - 150 * 86400;
-      let exportURL = null;
-      try {
-        const doc = new DOMParser().parseFromString(await (await fetch(base + "/calendar/export.php", {credentials: "include"})).text(), "text/html");
-        const form = doc.querySelector('form[action*="export.php"]') || doc.querySelector("form.mform");
-        if (form) {
-          const fd = new URLSearchParams();
-          form.querySelectorAll('input[type="hidden"]').forEach(el => { if (el.name) fd.set(el.name, el.value); });
-          fd.set("events[exportevents]", "all");
-          fd.set("period[timeperiod]", form.querySelector('input[name="period[timeperiod]"][value="custom"]') ? "custom" : "recentupcoming");
-          fd.set("generateurl", "1");
-          const out = await (await fetch(base + "/calendar/export.php", {method: "POST", credentials: "include",
-            headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: fd.toString()})).text();
-          const m = out.match(/https?:\/\/[^"'<>\s]+calendar\/export_execute\.php\?[^"'<>\s]+/i);
-          if (m) exportURL = m[0].replace(/&amp;/g, "&");
-        }
-      } catch (e) {}
-      const ajax = async calls => (await fetch(base + "/lib/ajax/service.php?sesskey=" + encodeURIComponent(sesskey), {
-        method: "POST", credentials: "include", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(calls.map((c, i) => ({index: i, methodname: c[0], args: c[1]})))})).json();
-      const assignIDs = [], pendingIDs = [], courses = {};
-      try {
-        const LIMIT = 50;
-        const [pending] = await ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]);
-        if (!pending || pending.error || !pending.data) throw 0;   // no trustworthy to-do list: infer nothing
-        const evs = pending.data.events || [];
-        evs.forEach(e => pendingIDs.push(e.id));
-        const until = evs.length >= LIMIT ? Math.max(...evs.map(e => e.timesort || e.timestart)) : Infinity;
-        const months = [], d = new Date(from * 1000), end = new Date();
-        d.setDate(1); end.setMonth(end.getMonth() + 4);
-        while (d <= end && months.length < 14) { months.push([d.getFullYear(), d.getMonth() + 1]); d.setMonth(d.getMonth() + 1); }
-        for (const v of await ajax(months.map(([y, m]) => ["core_calendar_get_calendar_monthly_view", {year: y, month: m, courseid: 1, day: 1}]))) {
-          if (!v || v.error) continue;
-          for (const w of v.data.weeks || []) for (const day of w.days || []) for (const e of day.events || []) {
-            if (e.course && e.course.shortname) courses[e.course.shortname] = e.course.fullname || e.course.shortname;
-            if (e.modulename === "assign" && e.eventtype === "due" && e.timestart >= from && e.timestart <= until) assignIDs.push(e.id);
-          }
-        }
-      } catch (e) {}
-      let download = null;
       const cid = Number(M.cfg.courseId || 0);
-      if (/\/course\/view\.php$/.test(location.pathname) && cid > 1 && confirm(__ASK__)) {
-        const box = document.createElement("div");
-        box.style.cssText = "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0d2b5c;color:#fff;padding:10px 16px;border-radius:10px;font:14px system-ui;box-shadow:0 8px 24px rgba(0,0,0,.3)";
-        document.body.appendChild(box);
-        const say = t => { box.textContent = "TAUdo: " + t; };
+      // Ask before the slow part, so the question doesn't wait for it.
+      const wantDownload = /\/course\/view\.php$/.test(location.pathname) && cid > 1 && confirm(__ASK__);
+      // A badge with TAUdo's logo while it works: the three circles light up in turn, and the check circle gets its
+      // check when done. In a shadow root, so Moodle's styles can't reach it.
+      const ui = (() => {
+        const host = document.createElement("div");
+        host.style.cssText = "all:initial;position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647";
+        const root = host.attachShadow({mode: "open"});
+        root.innerHTML = `<style>
+          .b{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 16px;border-radius:999px;background:#0d2b5c;color:#fff;
+            font:500 14px/1.25 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;white-space:nowrap;
+            box-shadow:0 12px 32px rgba(13,43,92,.35),0 2px 6px rgba(0,0,0,.18);
+            opacity:0;transform:translateY(-14px) scale(.96);transition:opacity .25s,transform .4s cubic-bezier(.2,.9,.3,1.25)}
+          .b.in{opacity:1;transform:none}
+          svg{height:26px;width:auto;flex:none;overflow:visible}
+          .p{fill:#fff;animation:pulse 1.2s ease-in-out infinite}
+          .p2{animation-delay:.2s}.p3{animation-delay:.4s}
+          @keyframes pulse{0%,100%{opacity:.28}45%{opacity:1}}
+          .ck{fill:none;stroke:#0d2b5c;stroke-width:5.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:27;stroke-dashoffset:27}
+          .done .p{animation:none;opacity:1}
+          .done .ck{stroke-dashoffset:0;transition:stroke-dashoffset .45s .15s ease-out}
+          .done .p1{transform-box:fill-box;transform-origin:center;animation:pop .5s ease-out}
+          @keyframes pop{40%{transform:scale(1.18)}}
+          @media (prefers-reduced-motion:reduce){.p{animation:none;opacity:1}.b{transition:opacity .2s}.done .p1{animation:none}}
+        </style>
+        <div class="b" dir="__DIR__">
+          <svg viewBox="476.8 -88.6 119 41.7" aria-hidden="true"><g transform="scale(1,-1)">
+            <ellipse class="p p1" cx="496.1422" cy="67.752" rx="18.3725" ry="17.947"/>
+            <path class="ck" d="M487.691 67.034L493.937 60.932L504.961 74.213"/>
+            <path class="p p2" transform="translate(553.7148 70.1595)" d="__RING0__"/>
+            <g class="p p3"><path transform="translate(589.4198 66.2591)" d="__RING1__"/><path transform="translate(566.9156 56.8448)" d="__RING2__"/><path transform="translate(569.6835 80.1447)" d="__RING3__"/></g>
+          </g></svg>
+          <span class="t"></span>
+        </div>`;
+        document.body.appendChild(host);
+        const b = root.querySelector(".b"), t = root.querySelector(".t");
+        requestAnimationFrame(() => requestAnimationFrame(() => b.classList.add("in")));
+        return {
+          say: s => { t.textContent = s; },
+          done: s => {
+            t.textContent = s; b.classList.add("done");
+            setTimeout(() => { b.classList.remove("in"); setTimeout(() => host.remove(), 450); }, 2400);
+          },
+        };
+      })();
+      ui.say(__GATHER__);
+      // Milliseconds each part took, sent along so slow syncs can be traced.
+      const t0 = performance.now(), took = {};
+      const timed = (k, p) => p.then(v => { took[k] = Math.round(performance.now() - t0); return v; });
+      // nosessionupdate: these reads needn't touch the session record.
+      const service = base + "/lib/ajax/service.php?nosessionupdate=1&sesskey=" + encodeURIComponent(sesskey);
+      const ajax = async (calls, signal) => (await fetch(service, {
+        method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, signal,
+        body: JSON.stringify(calls.map((c, i) => ({index: i, methodname: c[0], args: c[1]})))})).json();
+      const courses = {};
+      // Moodle runs one request per session at a time (session lock). Panopto's block lets go of the lock before asking
+      // Panopto, so it starts first and its waiting overlaps the rest.
+      // Each course's recordings come from its Panopto block (newer versions answer with data, older ones with the
+      // block's HTML); a course without the block just errors. Whatever hasn't answered within the time limit waits
+      // for the next click (TAUdo keeps each course's last list).
+      const recordings = {};
+      const panoptoCourse = async c => {
+        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+        try {
+          const [x] = await ajax([["block_panopto_get_content", {courseid: c.id}]], ctl.signal);
+          if (!x || x.error || x.data == null) return;
+          let items = [];
+          if (typeof x.data === "string") {
+            const doc = new DOMParser().parseFromString(x.data, "text/html");
+            items = [...doc.querySelectorAll('a[href*="Viewer.aspx"]')].map(a => [a.textContent.trim(), a.href]);
+          } else {
+            items = [...(x.data.recordings || []), ...(x.data.morerecordings || [])].map(s => [String(s.name || "").trim(), s.viewerurl]);
+          }
+          items = items.filter(i => i[0] && /^https:\/\//.test(i[1] || ""));
+          if (items.length) recordings[c.shortname] = items;
+        } catch (e) {} finally { clearTimeout(t); }
+      };
+      const panopto = async () => {
+        try {
+          const [en] = await ajax([["core_course_get_enrolled_courses_by_timeline_classification", {classification: "inprogress", limit: 0, offset: 0, sort: "fullname"}]]);
+          const list = en && !en.error && en.data && en.data.courses ? en.data.courses : [];
+          list.forEach(c => { if (c.shortname) courses[c.shortname] = c.fullname || c.shortname; });
+          const todo = list.filter(c => c.id && c.shortname).slice(0, 20);
+          await Promise.race([Promise.all(todo.map(panoptoCourse)), new Promise(ok => setTimeout(ok, 10000))]);
+        } catch (e) {}
+      };
+      // Moodle's to-do list: assignments still on it aren't submitted. TAUdo compares it with the deadlines it has
+      // from the calendar feed (the to-do list query is one of the few that doesn't hold the session lock).
+      let pendingIDs = null, pendingUntil = null;
+      const todoList = async () => {
+        try {
+          const LIMIT = 50;
+          const [pending] = await ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]);
+          if (!pending || pending.error || !pending.data) return;   // no trustworthy to-do list: infer nothing
+          const evs = pending.data.events || [];
+          pendingIDs = evs.map(e => e.id);
+          if (evs.length >= LIMIT) pendingUntil = Math.max(...evs.map(e => e.timesort || e.timestart));
+        } catch (e) {}
+      };
+      // The calendar link. Moodle's export form needs only the session key and its form marker, so post it directly;
+      // fall back to reading the form first if that didn't give a link.
+      const exportLink = async () => {
+        const find = html => { const m = html.match(/https?:\/\/[^"'<>\s]+calendar\/export_execute\.php\?[^"'<>\s]+/i); return m ? m[0].replace(/&amp;/g, "&") : null; };
+        const post = async fields => {
+          const fd = new URLSearchParams(fields);
+          fd.set("events[exportevents]", "all"); fd.set("generateurl", "1");
+          if (!fd.has("period[timeperiod]")) fd.set("period[timeperiod]", "recentupcoming");
+          return find(await (await fetch(base + "/calendar/export.php", {method: "POST", credentials: "include",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: fd.toString()})).text());
+        };
+        try {
+          const direct = await post({sesskey, _qf__core_calendar_export_form: "1", "period[timeperiod]": "custom"});
+          if (direct) return direct;
+          const doc = new DOMParser().parseFromString(await (await fetch(base + "/calendar/export.php", {credentials: "include"})).text(), "text/html");
+          const form = doc.querySelector('form[action*="export.php"]') || doc.querySelector("form.mform");
+          if (!form) return null;
+          const fields = {};
+          form.querySelectorAll('input[type="hidden"]').forEach(el => { if (el.name) fields[el.name] = el.value; });
+          fields["period[timeperiod]"] = form.querySelector('input[name="period[timeperiod]"][value="custom"]') ? "custom" : "recentupcoming";
+          return await post(fields);
+        } catch (e) { return null; }
+      };
+      const [, , exportURL] = await Promise.all([timed("panopto", panopto()), timed("todo", todoList()), timed("link", exportLink())]);
+      let download = null;
+      if (wantDownload) {
         const save = (blob, name) => {
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
@@ -139,7 +251,7 @@ enum MoodleConnect {
         let count = 0;
         const whole = document.querySelector('[data-downloadcourse], a[href*="/course/downloadcontent.php"]');
         if (whole && M.cfg.courseContextId) {
-          say("…");
+          ui.say(__FILES__.replace("{n}", 0).replace("{total}", "…"));
           try {
             const fd = new FormData(); fd.append("sesskey", sesskey);
             const r = await fetch(base + "/course/downloadcontent.php?contextid=" + M.cfg.courseContextId + "&download=1", {method: "POST", body: fd, credentials: "include"});
@@ -192,16 +304,16 @@ enum MoodleConnect {
                   save(await r.blob(), it.s + "__" + file); count++;
                 }
               } catch (e) {}
-              say(++done + "/" + todo.length);
+              ui.say(__FILES__.replace("{n}", ++done).replace("{total}", todo.length));
             }
           };
           await Promise.all([worker(), worker(), worker()]);
         }
-        say(count ? "✓ " + count : "0");
-        setTimeout(() => box.remove(), 4000);
         download = {courseID: cid, name, sections, count};
+        took.download = Math.round(performance.now() - t0);
       }
-      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({key: "__KEY__", base, exportURL, assignIDs, pendingIDs, courses, download}));
+      ui.done(download ? __SENT__.replace("{n}", download.count) : __DONE__);
+      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 3, key: "__KEY__", base, exportURL, pendingIDs, pendingFrom: from, pendingUntil, courses, download, recordings, took}));
     })();
     """#
 
@@ -212,9 +324,18 @@ enum MoodleConnect {
         let js = { (s: String) in (try? String(data: JSONEncoder().encode(s), encoding: .utf8)) ?? "\"\"" }
         let base = base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let origin = URL(string: base).flatMap { u in u.host.map { "\(u.scheme ?? "https")://\($0)" + (u.port.map { ":\($0)" } ?? "") } } ?? base
-        let code = bookmarkletSource.replacingOccurrences(of: "__KEY__", with: key)
+        let gather = String(localized: "Gathering from Moodle…")
+        let done = String(localized: "Done · opening TAUdo")
+        let files = String(localized: "Downloading files {n}/{total}", comment: "Keep {n} and {total} as they are")
+        let sent = String(localized: "{n} files on their way · opening TAUdo", comment: "Keep {n} as it is")
+        var code = bookmarkletSource.replacingOccurrences(of: "__KEY__", with: key)
+            .replacingOccurrences(of: "__GATHER__", with: js(gather)).replacingOccurrences(of: "__DONE__", with: js(done))
+            .replacingOccurrences(of: "__FILES__", with: js(files)).replacingOccurrences(of: "__SENT__", with: js(sent))
+            .replacingOccurrences(of: "__DIR__", with: Lang.isHebrew ? "rtl" : "ltr")
             .replacingOccurrences(of: "__ORIGIN__", with: js(origin)).replacingOccurrences(of: "__BASE__", with: js(base))
-            .replacingOccurrences(of: "__ASK__", with: js(ask)).replacingOccurrences(of: "__LOGIN__", with: js(login)).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+            .replacingOccurrences(of: "__ASK__", with: js(ask)).replacingOccurrences(of: "__LOGIN__", with: js(login))
+        for (i, ring) in Logo.ringPathData.enumerated() { code = code.replacingOccurrences(of: "__RING\(i)__", with: ring) }
+        code = code.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-_.!~*'()")
         return "javascript:" + code.addingPercentEncoding(withAllowedCharacters: allowed)!
     }
@@ -240,7 +361,7 @@ enum MoodleConnect {
         <li>פתחו את Moodle והתחברו.</li>
         <li>לחצו על <b>סנכרון TAUdo</b> ואשרו לדפדפן לפתוח את TAUdo.</li></ol>
         <p>הסימנייה קשורה ל־TAUdo שבמחשב הזה, כך שדפים אחרים לא יכולים לשלוח לו נתונים. אל תשתפו אותה.</p>
-        <p>TAUdo מקבל את קישור היומן ולומד אילו מטלות כבר הגשתם. אפשר ללחוץ שוב בכל עת כדי לעדכן הגשות; מועדי ההגשה מתעדכנים מעצמם.</p>
+        <p>TAUdo מקבל את קישור היומן ולומד אילו מטלות כבר הגשתם ואילו הקלטות יש ב־Panopto לכל קורס. אפשר ללחוץ שוב בכל עת כדי לעדכן; מועדי ההגשה מתעדכנים מעצמם.</p>
         <p><b>הורדת חומרי קורס:</b> לחיצה על הסימנייה בדף של קורס מציעה להוריד את כל הקבצים שלו. TAUdo מסדר אותם בתיקיית הקורס, לפי נושאים. ייתכן שהדפדפן יבקש אישור להורדת כמה קבצים.</p>
         """ : """
         <!doctype html><html lang="en"><meta charset="utf-8"><title>TAUdo sync bookmark</title>\(style)
@@ -250,7 +371,7 @@ enum MoodleConnect {
         <li>Open Moodle and log in.</li>
         <li>Click <b>TAUdo sync</b>. Allow the browser to open TAUdo.</li></ol>
         <p>The bookmark is tied to this Mac's TAUdo, so other pages can't send it data. Don't share it.</p>
-        <p>TAUdo then gets your calendar link and learns which assignments you've submitted. Click it again any time to update submissions; deadlines refresh on their own.</p>
+        <p>TAUdo then gets your calendar link and learns which assignments you've submitted and which recordings each course has on Panopto. Click it again any time to update; deadlines refresh on their own.</p>
         <p><b>Course materials:</b> click the bookmark on a course page to download all its files. TAUdo files them into the course folder, by section. Your browser may ask to allow multiple downloads.</p>
         """
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("TAUdo", isDirectory: true)

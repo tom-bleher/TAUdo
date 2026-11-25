@@ -33,6 +33,11 @@ enum Classifier {
 
     static func isExam(_ summary: String) -> Bool { exam.contains { matches($0, summary) } }
 
+    /// Moodle's title for an assignment's due date: "יש להגיש את '…'" in Hebrew, "… is due" in English.
+    /// (Quizzes close with "תאריך הגשה …" / "… closes"; those aren't assignments.)
+    private static let assignmentDue = rx(#"^\s*יש\s+להגיש\s+את\s|\sis\s+due\s*$"#)
+    static func isAssignmentDue(_ summary: String) -> Bool { matches(assignmentDue, summary) }
+
     /// Anything with a due date you act on: problem sets, quizzes, exams.
     /// "Quiz 3 opens" / "נפתח ב בוחן 3" (Hebrew Moodle): an opening, not a deadline.
     private static let opening = rx(#"(\bopens|נפתח[ת]?)\s*$|^\s*נפתח[ת]?\s"#)

@@ -174,16 +174,33 @@ final class ConnectTests: XCTestCase {
         var c = URLComponents(string: "taudo://sync")!
         c.queryItems = [URLQueryItem(name: "d", value: json)]
         let p = try XCTUnwrap(MoodleConnect.payload(from: c.url!))
-        XCTAssertEqual(p.submittedIDs, [1, 3])
+        XCTAssertEqual(p.submittedIDs(feed: []), [1, 3], "bookmarks before version 3 send the assignment ids")
         XCTAssertEqual(p.key, "k")
         XCTAssertEqual(p.courses?["0321-1"], "Physics")
         XCTAssertNil(MoodleConnect.payload(from: URL(string: "taudo://other?d=x")!))
+    }
+
+    /// Version 3 bookmarks send only the to-do list and its window: the assignments come from the calendar feed.
+    func testSubmissionsFromFeed() throws {
+        let t = { (d: Double) in Date(timeIntervalSince1970: 1_000_000 + d * 86400) }
+        let ev = { (id: Int, title: String, day: Double) in
+            MoodleEvent(uid: "\(id)@moodle.tau.ac.il", summary: title, start: t(day), end: t(day)) }
+        let feed = [ev(1, "יש להגיש את 'תרגיל בית 1'", 1), ev(2, "יש להגיש את 'תרגיל בית 2'", 5), ev(3, "HW 3 is due", 6),
+                    ev(4, "תאריך הגשה בוחן 1", 2), ev(5, "יש להגיש את 'תרגיל בית 0'", -10), ev(6, "יש להגיש את 'תרגיל בית 9'", 40)]
+        let json = { (s: String) in try XCTUnwrap(MoodleConnect.payload(from: {
+            var c = URLComponents(string: "taudo://sync")!; c.queryItems = [URLQueryItem(name: "d", value: s)]; return c.url! }())) }
+        // Before the window (5), quizzes (4) and past a cut-off list's end (6) are never inferred.
+        let p = try json(#"{"base":"x","v":3,"pendingIDs":[2],"pendingFrom":1000000,"pendingUntil":3592000}"#)
+        XCTAssertEqual(p.submittedIDs(feed: feed), [1, 3])
+        let noList = try json(#"{"base":"x","v":3,"pendingIDs":null,"pendingFrom":1000000}"#)
+        XCTAssertEqual(noList.submittedIDs(feed: feed), [], "no readable to-do list: nothing is submitted")
     }
 
     func testBookmarkletIsValidJavaScript() throws {
         // Decodes the javascript: URL and syntax-checks it with JavaScriptCore.
         let code = try XCTUnwrap(MoodleConnect.bookmarkletURL(key: "k", base: "https://moodle.tau.ac.il/").dropFirst("javascript:".count).removingPercentEncoding)
         XCTAssertTrue(code.contains(#"if (location.origin !== "https:\/\/moodle.tau.ac.il")"#), "only runs on your Moodle")
+        XCTAssertNil(code.range(of: #"__[A-Z0-9]+__"#, options: .regularExpression), "every placeholder is filled in")
         let ctx = try XCTUnwrap(JSContext())
         var error: String?
         ctx.exceptionHandler = { _, e in error = e?.toString() }
@@ -314,6 +331,17 @@ final class OverdueSettingTests: XCTestCase {
         let d = try! JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
         XCTAssertFalse(d.showOverdue)
     }
+
+    /// The menu bar switch from before 0.3 carries over: off meant the icon alone.
+    func testMenuBarSwitchMigrates() throws {
+        let decode = { try JSONDecoder().decode(Settings.self, from: Data(($0 as String).utf8)) }
+        XCTAssertEqual(try decode("{}").menuBar, .deadline)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false}"#).menuBar, .icon)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": true}"#).menuBar, .deadline)
+        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false, "menuBar": "timeLeft"}"#).menuBar, .timeLeft)
+        var s = Settings(); s.menuBar = .timeLeft; s.listLimit = 12; s.fetchExams = false
+        XCTAssertEqual(try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(s)), s)
+    }
 }
 
 final class SubmittedVsSolvedTests: XCTestCase {
@@ -325,17 +353,6 @@ final class SubmittedVsSolvedTests: XCTestCase {
         let hw6 = d.deadlines().first { $0.id == "hw6" }!
         XCTAssertEqual(hw6.cell?.index, 5)
         XCTAssertFalse(hw6.isDone)
-    }
-
-    /// The menu bar switch from before 0.3 carries over: off meant the icon alone.
-    func testMenuBarSwitchMigrates() throws {
-        let decode = { try JSONDecoder().decode(Settings.self, from: Data(($0 as String).utf8)) }
-        XCTAssertEqual(try decode("{}").menuBar, .deadline)
-        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false}"#).menuBar, .icon)
-        XCTAssertEqual(try decode(#"{"menuBarShowsNext": true}"#).menuBar, .deadline)
-        XCTAssertEqual(try decode(#"{"menuBarShowsNext": false, "menuBar": "timeLeft"}"#).menuBar, .timeLeft)
-        var s = Settings(); s.menuBar = .timeLeft; s.listLimit = 12; s.fetchExams = false
-        XCTAssertEqual(try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(s)), s)
     }
 }
 
@@ -548,5 +565,18 @@ final class RecordingTests: XCTestCase {
         XCTAssertEqual(m[.lecture]?[2]?.map(\.name), ["הרצאה 2", "הרצאה 2 - חלק ב"])
         XCTAssertEqual(m[.recitation]?[2]?.count, 1)
         XCTAssertEqual(Recordings.sorted(list).map(\.name), ["הרצאה 2", "הרצאה 2 - חלק ב", "הרצאה 10", "תרגול 2", "סיכום הקורס"])
+    }
+
+    /// The bookmark's list keeps only https Panopto viewer links, per course.
+    func testPayloadRecordings() throws {
+        let json = #"{"base": "https://moodle.tau.ac.il", "assignIDs": [], "pendingIDs": [], "v": 2, "recordings": {"0321 - X": ["#
+            + #"["הרצאה 1", "https://tau.cloud.panopto.eu/Panopto/Pages/Viewer.aspx?id=abc"], ["evil", "https://evil.example/x"],"#
+            + #"["plain", "http://tau.cloud.panopto.eu/x"], ["short"]]}}"#
+        var c = URLComponents(string: "taudo://sync")!
+        c.queryItems = [URLQueryItem(name: "d", value: json)]
+        let p = try XCTUnwrap(MoodleConnect.payload(from: c.url!))
+        XCTAssertEqual(p.v, 2)
+        XCTAssertEqual(p.validRecordings["0321 - X"]?.map(\.name), ["הרצאה 1"])
+        XCTAssertFalse(Recordings.valid(rec("x", "panopto.eu.evil.com")))
     }
 }

@@ -151,7 +151,7 @@ struct MoodleSettings: View {
                     Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: s.syncKey, base: s.moodleBaseURL) }
                     if let t = model.data.lastStatusCheck { Note(Text("Last used \(t.relative())")) }
                 }
-                Note("Click the bookmark on Moodle to mark the assignments you've submitted. On a course page it also downloads the course's files.")
+                Note("Click the bookmark on Moodle to mark the assignments you've submitted and find each course's Panopto recordings. On a course page it also downloads the course's files.")
             }
             Rule()
             Row("Course Files") {

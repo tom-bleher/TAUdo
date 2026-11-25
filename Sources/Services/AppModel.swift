@@ -2,10 +2,12 @@ import AppKit
 import EventKit
 import Foundation
 import Observation
+import OSLog
 
 @MainActor
 @Observable
 final class AppModel {
+    static let log = Logger(subsystem: "io.github.tombleher.TAUdo", category: "sync")
     var data: AppData { didSet { save() } }
     var now = Date()
     var syncing = false
@@ -211,8 +213,15 @@ final class AppModel {
         data.settings.moodleBaseURL = p.base
         data.moodleCourseNames.merge(p.courses ?? [:]) { _, new in new }
         data.autoLinkCourses(files: files)
-        data.applySubmissions(p.submittedIDs)
+        data.applySubmissions(p.submittedIDs(feed: data.events))
         data.lastStatusCheck = .now
+        if let t = p.took { Self.log.notice("bookmark sync took \(t.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value) ms" }.joined(separator: ", "), privacy: .public)") }
+        // Replace per course: a course whose block didn't answer this time keeps its last list.
+        data.recordings.merge(p.validRecordings.filter { !$0.value.isEmpty }) { _, new in new }
+        if (p.v ?? 1) < 2 {
+            Notifier.post(String(localized: "Update your TAUdo bookmark"),
+                          String(localized: "The new bookmark also finds each course's Panopto recordings. Install it again from Settings › Moodle."), id: "bookmark.old")
+        }
         if let dl = p.download, dl.count > 0 {
             data.downloads.removeAll { $0.courseID == dl.courseID }
             data.downloads.append(DownloadManifest(courseID: dl.courseID, name: dl.name, sections: dl.sections ?? [:], count: dl.count))

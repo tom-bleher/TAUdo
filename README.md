@@ -52,6 +52,7 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 |---|---|---|
 | Deadlines | Moodle's iCal export (`calendar/export_execute.php`), fetched hourly, on wake, and when you open the panel | Only the link |
 | Submitted assignments | The bookmark compares assignment due events with Moodle's to-do list (`core_calendar_get_action_events_by_timesort`). An assignment no longer on the list counts as submitted | A click on the bookmark while logged in |
+| Lecture recordings | Each enrolled course's Panopto block (`block_panopto_get_content`), asked for its recordings. Cubes open them in Panopto by session number (`הרצאה 5`, `תרגול 07`, `07 - …`); the rest are listed on the course | A click on the bookmark while logged in |
 | Course files | Moodle's *Download course content* zip if the course allows it. Otherwise `core_courseformat_get_state`, which gives files as `mod/resource/view.php?redirect=1` and folders as `download_folder.php` zips, plus files linked in section text | A click on the bookmark on the course page |
 
 Some details:

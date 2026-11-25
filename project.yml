@@ -52,7 +52,7 @@ targets:
   TAUdoTests:
     type: bundle.unit-test
     platform: macOS
-    sources: [Tests, Sources/Core, Sources/Services/MoodleFeed.swift, Sources/Services/MoodleConnect.swift, Sources/Services/Lang.swift, Sources/Services/DownloadMover.swift]
+    sources: [Tests, Sources/Core, Sources/Services/MoodleFeed.swift, Sources/Services/MoodleConnect.swift, Sources/UI/Logo.swift, Sources/Services/Lang.swift, Sources/Services/DownloadMover.swift]
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
