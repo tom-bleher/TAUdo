@@ -18,13 +18,31 @@ enum Snapshot {
             render(PanelView(), model: model, width: PanelView.width, to: dir.appendingPathComponent("panel-\(tab.rawValue)\(suffix).png"), dark: dark)
         }
         UserDefaults.standard.set(PanelView.Tab.due.rawValue, forKey: "panelTab")
+        // The Due tab's other states: adding a deadline, done ones listed, a hidden course in the footer.
+        var busy = model.data
+        if let d = busy.deadlines().first(where: { $0.due > .now }) { busy.setDone(d, true) }
+        let other = "0366111101 - אלגברה לינארית 1א"
+        busy.events.append(MoodleEvent(uid: "9100@moodle.tau.ac.il", summary: "יש להגיש את 'תרגיל בית 5'", categories: [other],
+                                       start: .now.addingTimeInterval(86400), end: .now.addingTimeInterval(86400)))
+        busy.ignoredCourseKeys = [other]
+        let savedDone = UserDefaults.standard.object(forKey: "panelShowsDone")
+        UserDefaults.standard.set(true, forKey: "panelShowsDone")
+        render(PanelView(adding: true), model: AppModel(data: busy, persist: false), width: PanelView.width,
+               to: dir.appendingPathComponent("panel-states\(suffix).png"), dark: dark)
+        UserDefaults.standard.set(savedDone, forKey: "panelShowsDone")
         render(InMenuBar(dark: dark), model: model, width: InMenuBar.width, to: dir.appendingPathComponent("menubar\(suffix).png"), dark: dark)
         let w = SettingsView.width
-        render(GeneralSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-general\(suffix).png"), dark: dark)
-        render(MoodleSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-moodle\(suffix).png"), dark: dark)
-        render(NotificationSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-notifications\(suffix).png"), dark: dark)
-        render(CoursesSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-courses\(suffix).png"), dark: dark)
-        render(ExamsSettings(), model: model, width: w, to: dir.appendingPathComponent("settings-exams\(suffix).png"), dark: dark)
+        func pane<V: View>(_ name: String, _ view: V) {
+            render(view, model: model, width: w, to: dir.appendingPathComponent("settings-\(name)\(suffix).png"), dark: dark)
+        }
+        pane("general", GeneralSettings())
+        pane("menubar", MenuBarSettings())
+        pane("moodle", MoodleSettings())
+        pane("courses", CoursesSettings())
+        pane("exams", ExamsSettings())
+        pane("notifications", NotificationSettings())
+        pane("calendar", CalendarSettings())
+        pane("updates", UpdateSettings())
         render(WelcomeView(onDone: {}), model: model, width: 520, to: dir.appendingPathComponent("welcome\(suffix).png"), dark: dark)
         UserDefaults.standard.set(savedTab, forKey: "panelTab")
         NSApp.terminate(nil)

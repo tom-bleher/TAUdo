@@ -23,7 +23,11 @@ struct PanelView: View {
     @Environment(\.openSettings) private var openSettings
     @AppStorage("panelTab") private var tab = Tab.due
     @State private var contentHeight: CGFloat = 400
+    @State private var adding: Bool
     static let width: CGFloat = 470
+
+    /// `adding`: start with the add-deadline card open (snapshots).
+    init(adding: Bool = false) { _adding = State(initialValue: adding) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +36,7 @@ struct PanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     notices
+                    if adding { AddDeadline { adding = false } }
                     switch tab {
                     case .due: DeadlineList()
                     case .courses: CourseList()
@@ -42,43 +47,62 @@ struct PanelView: View {
             }
             // Menu bar windows size to their content; a bare ScrollView has none, so size it explicitly.
             .frame(height: min(max(contentHeight, 80), 600))
+            Divider()
+            footer
         }
         .frame(width: PanelView.width)
         .onAppear { model.panelDidOpen(); model.refreshIfStale() }
-        .onDisappear { model.panelDidClose() }
+        .onDisappear { model.panelDidClose(); adding = false }
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Picker("", selection: $tab) {
                 Text("Due").tag(Tab.due)
                 Text("Courses").tag(Tab.courses)
             }
             .pickerStyle(.segmented).labelsHidden().fixedSize()
             Spacer()
+            Button { tab = .due; adding.toggle() } label: { Image(systemName: "plus") }
+                .help(Text("Add exam or deadline")).keyboardShortcut("n")
             Button { Task { await model.refresh() } } label: {
                 if model.syncing { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.clockwise") }
             }
-            .buttonStyle(.borderless).disabled(model.syncing).help(Text("Refresh from Moodle") + Text(verbatim: " · " + syncText))
-            .keyboardShortcut("r")
-            Menu {
-                Text(syncText)
-                Divider()
-                Button("Connect Moodle in browser…") { model.connect() }
-                Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey, base: model.data.settings.moodleBaseURL) }
-                Button("Check for Updates…") { show { Updates.shared.check() } }
-                Button("Settings…") { show { openSettings() } }.keyboardShortcut(",")
-                Divider()
-                Button("Quit TAUdo") { NSApp.terminate(nil) }.keyboardShortcut("q")
-            } label: { Image(systemName: "ellipsis.circle") }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .disabled(model.syncing).help(Text("Refresh from Moodle")).keyboardShortcut("r")
         }
+        .buttonStyle(.borderless)
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
-    private var syncText: String {
-        guard let t = model.data.lastSync else { return String(localized: "Not synced yet") }
-        return String(localized: "Synced \(t.relative())")
+    /// Where things stand (last sync, anything hidden) and the app's menu.
+    private var footer: some View {
+        let hidden = model.hiddenCourseCount
+        return HStack(spacing: 6) {
+            Group {
+                if model.syncing { Text("Syncing…") }
+                else if let t = model.data.lastSync { Text("Synced \(t.relative())") }
+                else { Text("Not synced yet") }
+            }
+            .foregroundStyle(.secondary)
+            if hidden > 0 {
+                Text(verbatim: "·").foregroundStyle(.tertiary)
+                Button { SettingsTab.moodle.open(openSettings) } label: { Text("\(hidden) hidden courses") }
+                    .buttonStyle(.link).help(Text("Moodle courses you marked as not yours. Show them again in Settings."))
+            }
+            Spacer()
+            Menu {
+                Button("Settings…") { show { openSettings() } }.keyboardShortcut(",")
+                Button("Check for Updates…") { show { Updates.shared.check() } }
+                Divider()
+                Button("Connect Moodle in browser…") { model.connect() }
+                Button("Install sync bookmark…") { MoodleConnect.openBookmarkletPage(key: model.data.settings.syncKey, base: model.data.settings.moodleBaseURL) }
+                Divider()
+                Button("Quit TAUdo") { NSApp.terminate(nil) }.keyboardShortcut("q")
+            } label: { Image(systemName: "gearshape") }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        }
+        .font(.caption)
+        .padding(.horizontal, 14).padding(.vertical, 6)
     }
 
     /// Only things that need you: errors, connecting Moodle, linking courses.
@@ -89,7 +113,7 @@ struct PanelView: View {
         if model.now > model.data.settings.semesterEnd.addingTimeInterval(14 * 86400) {
             Notice(text: String(localized: "The semester in Settings has ended. Set the new semester's dates so the class markers stay right."),
                    systemImage: "calendar.badge.exclamationmark", color: .blue) {
-                Button("Settings…") { show { openSettings() } }.controlSize(.small)
+                Button("Settings…") { SettingsTab.general.open(openSettings) }.controlSize(.small)
             }
         }
         if !model.unlinkedMoodleCourses.isEmpty { LinkCourses() }
@@ -201,16 +225,18 @@ struct LinkCourses: View {
 struct DeadlineList: View {
     @Environment(AppModel.self) private var model
     @State private var showAll = false
-    private let limit = 8
+    @AppStorage("panelShowsDone") private var showDone = false
 
     var body: some View {
+        let limit = model.data.settings.listLimit
         let open = model.open
+        let done = model.completed
         let shown = showAll ? open : Array(open.prefix(limit))
         let groups = Dictionary(grouping: shown) { DueGroup.of($0.due, now: model.now) }
         let first = DueGroup.allCases.first { groups[$0] != nil }
         let missed = model.overdue.count
         VStack(alignment: .leading, spacing: 0) {
-            if open.isEmpty && !model.data.settings.exportURL.isEmpty { empty }
+            if open.isEmpty && !(showDone && !done.isEmpty) && !model.data.settings.exportURL.isEmpty { empty }
             ForEach(DueGroup.allCases, id: \.self) { g in
                 if let items = groups[g] {
                     Text(g.label).font(.caption.weight(.semibold)).foregroundStyle(g == .overdue ? Color.red : .secondary)
@@ -219,7 +245,13 @@ struct DeadlineList: View {
                     ForEach(items) { DeadlineRow(d: $0, group: g) }
                 }
             }
-            if open.count > limit || missed > 0 {
+            if showDone && !done.isEmpty {
+                Text("Done").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .padding(.horizontal, DeadlineRow.inset).padding(.top, open.isEmpty ? 2 : 12).padding(.bottom, 2)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(done) { DeadlineRow(d: $0, group: .later) }
+            }
+            if open.count > limit || missed > 0 || !done.isEmpty {
                 HStack(spacing: 14) {
                     if open.count > limit {
                         Button { showAll.toggle() } label: { showAll ? Text("Show less") : Text("\(open.count - shown.count) more…") }
@@ -228,6 +260,9 @@ struct DeadlineList: View {
                         Button { model.data.settings.showOverdue.toggle() } label: {
                             model.data.settings.showOverdue ? Text("Hide overdue") : Text("Show \(missed) overdue")
                         }
+                    }
+                    if !done.isEmpty {
+                        Button { showDone.toggle() } label: { showDone ? Text("Hide done") : Text("Show \(done.count) done") }
                     }
                 }
                 .buttonStyle(.link).font(.caption)
@@ -264,10 +299,10 @@ struct DeadlineRow: View {
                 Image(systemName: d.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17)).foregroundStyle(Palette.course(d.courseIndex))
             }
-            .buttonStyle(.borderless).help(Text("Mark done"))
+            .buttonStyle(.borderless).help(d.isDone ? Text("Mark not done") : Text("Mark done"))
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text(d.title).lineLimit(1)
+                    Text(d.title).lineLimit(1).strikethrough(d.isDone).foregroundStyle(d.isDone ? .secondary : .primary)
                     if d.isExam { Tag(text: Text("Exam")) }
                 }
                 Text(verbatim: Lang.joined(model.courseName(d), d.due.dueLabel(group, time: !d.event.isAllDay)))
@@ -278,11 +313,13 @@ struct DeadlineRow: View {
                 Button { NSWorkspace.shared.open(link) } label: { Image(systemName: "arrow.up.forward.square") }
                     .buttonStyle(.borderless).foregroundStyle(.secondary).help(Text("Open in Moodle"))
             }
-            Group {
-                if let urgency { Tag(text: Text(AppModel.remaining(d.due, now: model.now)).monospacedDigit(), color: urgency) }
-                else { Text(AppModel.remaining(d.due, now: model.now)).font(.callout.monospacedDigit()).foregroundStyle(.secondary) }
+            if !d.isDone {
+                Group {
+                    if let urgency { Tag(text: Text(AppModel.remaining(d.due, now: model.now)).monospacedDigit(), color: urgency) }
+                    else { Text(AppModel.remaining(d.due, now: model.now)).font(.callout.monospacedDigit()).foregroundStyle(.secondary) }
+                }
+                .help(d.due.long(time: !d.event.isAllDay))
             }
-            .help(d.due.long(time: !d.event.isAllDay))
         }
         .font(.callout)
         .padding(.vertical, 5).padding(.horizontal, Self.inset)
@@ -344,5 +381,45 @@ struct CubeLegend: View {
         }
         .font(.caption2).foregroundStyle(.secondary)
         .padding(.horizontal, 10).padding(.top, 2)
+    }
+}
+
+/// A card for adding an exam or deadline of your own without leaving the panel.
+struct AddDeadline: View {
+    @Environment(AppModel.self) private var model
+    var onClose: () -> Void
+    @State private var title = ""
+    @State private var due = ManualDeadline.suggestedDue()
+    @State private var courseID: UUID?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Title", text: $title, prompt: Text("Exam or deadline")).labelsHidden().textFieldStyle(.roundedBorder)
+                .focused($focused).onSubmit(add)
+            HStack(spacing: 8) {
+                Picker("Courses", selection: $courseID) {
+                    Text("No course").tag(UUID?.none)
+                    ForEach(model.data.courses) { Text($0.name).tag(Optional($0.id)) }
+                }
+                .labelsHidden().frame(maxWidth: 190)
+                DatePicker("Due", selection: $due).labelsHidden().fixedSize()
+                Spacer(minLength: 0)
+                Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("Add", action: add).buttonStyle(.borderedProminent).disabled(trimmed.isEmpty)
+            }
+            .controlSize(.small)
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onAppear { focused = true }
+    }
+
+    private var trimmed: String { title.trimmingCharacters(in: .whitespaces) }
+
+    private func add() {
+        guard !trimmed.isEmpty else { return }
+        model.addDeadline(title: trimmed, due: due, courseID: courseID)
+        onClose()
     }
 }

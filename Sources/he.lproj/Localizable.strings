@@ -231,5 +231,12 @@
 "My Own" = "משלי";
 "Exams and deadlines that aren't on Moodle. They show up in the menu bar, the reminders and the calendar like Moodle deadlines." = "מבחנים ומועדים שלא מופיעים ב־Moodle. הם מופיעים בשורת התפריטים, בתזכורות וביומן כמו מועדי Moodle.";
 
+/* Panel */
+"Add" = "הוספה";
+"Exam or deadline" = "מבחן או מועד הגשה";
+"Hide done" = "הסתרת מה שבוצע";
+"Show %lld done" = "הצגת %lld שבוצעו";
+"Mark not done" = "סימון כלא בוצע";
+"Syncing…" = "מסנכרן…";
 
 

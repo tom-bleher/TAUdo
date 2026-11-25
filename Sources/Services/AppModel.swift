@@ -393,6 +393,11 @@ final class AppModel {
     }
 
     var next: Deadline? { open.first { $0.due >= now } }
+
+    /// Ticked deadlines that are still current (due within the last week or later), so a tick can be undone.
+    var completed: [Deadline] {
+        deadlines.filter { $0.isDone && $0.due > now.addingTimeInterval(-7 * 86400) }
+    }
     /// Shown in the menu bar only when overdue deadlines are shown.
     var overdueCount: Int { data.settings.showOverdue ? overdue.count : 0 }
 
