@@ -32,8 +32,8 @@ targets:
       properties:
         CFBundleDisplayName: TAUdo
         CFBundleIconFile: AppIcon
-        CFBundleShortVersionString: "0.3.0"
-        CFBundleVersion: "3"
+        CFBundleShortVersionString: "0.4.0"
+        CFBundleVersion: "4"
         LSUIElement: true
         CFBundleURLTypes:
           - CFBundleURLName: io.github.tombleher.TAUdo.sync
