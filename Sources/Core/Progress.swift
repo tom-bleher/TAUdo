@@ -175,11 +175,6 @@ enum Pacing {
         return Int((f * Double(t.count)).rounded(.down))
     }
 
-    /// Items before the planned position that are still open.
-    static func behind(_ t: Track, planned: Int) -> Int {
-        t.cells.prefix(planned).filter { $0 == .empty || $0 == .todo }.count
-    }
-
     static func completion(_ c: Course) -> (done: Int, total: Int) {
         let cells = c.tracks.flatMap(\.cells).filter { $0 != .skipped }
         return (cells.filter { $0 == .done }.count, cells.count)

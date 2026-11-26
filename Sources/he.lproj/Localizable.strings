@@ -1,6 +1,8 @@
 /* Hebrew UI strings. Keys are the English source strings. */
 "%lld ahead of the class" = "לפני הכיתה ב־%lld";
 "%lld behind the class" = "מאחורי הכיתה ב־%lld";
+"%lld ahead of your plan" = "לפני התוכנית שלכם ב־%lld";
+"%lld behind your plan" = "מאחורי התוכנית שלכם ב־%lld";
 "%lld h" = "%lld שע׳";
 "%lld min" = "%lld דק׳";
 "%lld more…" = "עוד %lld…";

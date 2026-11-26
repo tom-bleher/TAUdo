@@ -115,7 +115,6 @@ final class ProgressTests: XCTestCase {
     func testYouVsClass() {
         let t = Track(name: "L", kind: .lecture, count: 10, perWeek: 2, cells: Course.seed("ddd.r..s"))
         XCTAssertEqual(Pacing.yourPosition(t), 8)
-        XCTAssertEqual(Pacing.behind(t, planned: 6), 2)
         var c = Course(name: "c", pace: .selfStudy, tracks: [t])
         var s = Settings()
         s.semesterStart = Settings.day(2026, 10, 1)
