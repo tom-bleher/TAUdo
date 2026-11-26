@@ -150,7 +150,10 @@ final class AppModel {
         do {
             let (body, resp) = try await URLSession.shared.data(from: url)
             guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return }
-            data.exams = try await Task.detached(priority: .utility) { try Arazim.exams(catalog: body, moodleKeys: keys) }.value
+            let exams = try await Task.detached(priority: .utility) { try Arazim.exams(catalog: body, moodleKeys: keys) }.value
+            // The semester changed meanwhile: these are the old one's (the queued refresh fetches the new one).
+            guard Arazim.catalogURL(semesterStart: data.settings.semesterStart) == url else { return }
+            data.exams = exams
             data.examsFetched = .now
         } catch {}
     }
