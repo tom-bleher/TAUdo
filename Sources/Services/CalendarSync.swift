@@ -42,10 +42,18 @@ final class CalendarSync {
             .sorted { ($0.account, $0.title) < ($1.account, $1.title) }
     }
 
-    /// Finds the calendar by id, else by name, else creates it (iCloud if available, otherwise On My Mac).
-    /// Never renames: the calendar may be one of yours that you picked in Settings.
+    struct Missing: LocalizedError {
+        var errorDescription: String? { String(localized: "The calendar TAUdo writes to isn't available. Choose one in Settings › Calendar.") }
+    }
+
+    /// The chosen calendar (`id`), or without one: the calendar named `name`, else a new one (iCloud if available,
+    /// otherwise On My Mac). A chosen calendar that's gone (an account removed, or not loaded yet) is an error, not
+    /// a reason to start another one beside the events already written. Never renames: it may be one of yours.
     func calendar(id: String?, name: String) throws -> EKCalendar {
-        if let id, let c = store.calendar(withIdentifier: id) { return c }
+        if let id {
+            guard let c = store.calendar(withIdentifier: id) else { throw Missing() }
+            return c
+        }
         if let c = store.calendars(for: .event).first(where: { $0.title == name && $0.allowsContentModifications }) { return c }
         let c = EKCalendar(for: .event, eventStore: store)
         c.title = name
