@@ -60,7 +60,8 @@ final class CalendarSync {
     /// Creates/updates events by Moodle UID and deletes ones no longer wanted from `keepBefore` on.
     /// Older events are kept: TAUdo only remembers this semester, so they're last semester's history.
     func sync(_ planned: [Planned], into cal: EKCalendar, keepBefore: Date, now: Date = .now) throws -> (created: Int, updated: Int, deleted: Int) {
-        let lo = min(planned.map(\.start).min() ?? now, now).addingTimeInterval(-86400)
+        // Look from where deletions start (see below), so unwanted events from early in the semester are found too.
+        let lo = ([keepBefore, now] + planned.map(\.start)).min()!.addingTimeInterval(-86400)
         let hi = max(planned.map(\.end).max() ?? now, now).addingTimeInterval(400 * 86400)
         var existing: [String: EKEvent] = [:]
         for e in store.events(matching: store.predicateForEvents(withStart: lo, end: hi, calendars: [cal])) {
