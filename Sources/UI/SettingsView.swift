@@ -47,7 +47,6 @@ struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
-    @State private var importing = false
 
     var body: some View {
         @Bindable var m = model
@@ -84,14 +83,10 @@ struct GeneralSettings: View {
             }
             Rule()
             Row("Data") {
-                HStack {
-                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([AppModel.fileURL]) }
-                    Button("Import progress from track.html…") { importing = true }
-                }
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([AppModel.fileURL]) }
                 Note("Everything TAUdo knows stays in one file on this Mac.")
             }
         }
-        .sheet(isPresented: $importing) { ImportSheet() }
     }
 }
 
@@ -359,46 +354,6 @@ struct UpdateSettings: View {
                 Link("TAUdo on GitHub", destination: URL(string: "https://github.com/tom-bleher/TAUdo")!).font(.callout)
             }
         }
-    }
-}
-
-// MARK: Import
-
-struct ImportSheet: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @State private var error: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Import from track.html").font(.headline)
-            Text("Open track.html in your browser, open the developer console and run:").font(.callout)
-            Text("copy(localStorage['course-tracker-v1'])").font(.callout.monospaced()).textSelection(.enabled)
-            Text("Then paste here. This replaces your courses.").font(.callout).foregroundStyle(.secondary)
-            TextEditor(text: $text).font(.caption.monospaced()).frame(height: 180).border(.separator)
-            if let error { Text(error).foregroundStyle(.red).font(.caption) }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Import") {
-                    do {
-                        var imported = try AppData.importTrackHTML(text)
-                        // Keep Moodle mappings and pace for courses with the same name.
-                        for i in imported.indices {
-                            if let old = model.data.courses.first(where: { $0.name == imported[i].name }) {
-                                imported[i].moodleKey = old.moodleKey; imported[i].pace = old.pace; imported[i].targetDate = old.targetDate
-                            }
-                        }
-                        model.data.courses = imported
-                        model.push()
-                        dismiss()
-                    } catch { self.error = String(localized: "Couldn't read that: \(error.localizedDescription)") }
-                }
-                .keyboardShortcut(.defaultAction).disabled(text.isEmpty)
-            }
-        }
-        .padding(20).frame(width: 480)
     }
 }
 

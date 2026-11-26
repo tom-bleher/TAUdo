@@ -11,7 +11,7 @@ import glob, html, re, sys
 x = open(glob.glob(sys.argv[1] + "/**/*.xliff", recursive=True)[0]).read()
 units = re.findall(r'<trans-unit id="(.*?)"[^>]*>\s*<source>.*?</source>\s*(?:<target[^>]*>(.*?)</target>)?', x, re.S)
 # Strings that are deliberately not translated (names, code, URLs, format-only).
-keep = {"CFBundleDisplayName", "CFBundleName", "%@ — %@", "copy(localStorage['course-tracker-v1'])",
+keep = {"CFBundleDisplayName", "CFBundleName", "%@ — %@",
         "https://moodle.tau.ac.il/…/calendar/export_execute.php?…"}
 missing = [html.unescape(k) for k, t in units if not t and html.unescape(k) not in keep]
 print("\n".join(missing) if missing else "All strings translated.")

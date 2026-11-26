@@ -21,7 +21,6 @@
 "Connect Moodle" = "חיבור ל־Moodle";
 "Connect Moodle in browser…" = "חיבור ל־Moodle בדפדפן…";
 "Connect in browser…" = "חיבור בדפדפן…";
-"Couldn't read that: %@" = "לא ניתן לקרוא את זה: %@";
 "Courses" = "קורסים";
 "Delete" = "מחיקה";
 "Delete course" = "מחיקת הקורס";
@@ -40,9 +39,6 @@
 "Hide (not mine)" = "הסתרה (לא שלי)";
 "Hide overdue" = "הסתרת מועדים שעברו";
 "Homework" = "שיעורי בית";
-"Import" = "ייבוא";
-"Import from track.html" = "ייבוא מ־track.html";
-"Import progress from track.html…" = "ייבוא התקדמות מ־track.html…";
 "In the browser: log in, choose All events and a custom range, click Get calendar URL, then copy the link." = "בדפדפן: התחברו, בחרו את כל האירועים וטווח מותאם, לחצו על הכפתור לקבלת כתובת היומן והעתיקו את הקישור.";
 "Install sync bookmark…" = "התקנת סימניית סנכרון…";
 "Language" = "שפה";
@@ -72,7 +68,6 @@
 "Open Moodle in browser" = "פתיחת Moodle בדפדפן";
 "Open course folder" = "פתיחת תיקיית הקורס";
 "Open in Moodle" = "פתיחה ב־Moodle";
-"Open track.html in your browser, open the developer console and run:" = "פתחו את track.html בדפדפן, פתחו את מסוף המפתחים והריצו:";
 "Other" = "אחר";
 "Pace" = "קצב";
 "Quit TAUdo" = "יציאה מ־TAUdo";
@@ -94,7 +89,6 @@
 "The class has covered this" = "הכיתה כבר עברה על זה";
 "The class is here" = "כאן הכיתה";
 "The export link is incomplete (no authtoken)." = "קישור הייצוא חסר (אין authtoken).";
-"Then paste here. This replaces your courses." = "ואז הדביקו כאן. הפעולה מחליפה את הקורסים שלכם.";
 "Title" = "כותרת";
 "To do" = "לעשות";
 "Which course is this?" = "איזה קורס זה?";

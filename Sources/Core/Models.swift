@@ -1,6 +1,6 @@
 import Foundation
 
-/// Same states and click-cycle order as the original track.html.
+/// A cube's state; a click moves to the next one.
 enum CellState: String, Codable, CaseIterable, Sendable {
     case empty = "", done, todo, revisit, skipped
 
@@ -115,7 +115,6 @@ struct Course: Codable, Identifiable, Hashable, Sendable {
         tracks = try c.decodeIfPresent([Track].self, forKey: .tracks) ?? []
     }
 
-    /// Lecture / Recitation / Homework rows like track.html (25 / 13 / 13 for a 13-week TAU semester).
     /// Lecture / Recitation / Homework rows for a 13-week TAU semester (2 lectures a week).
     static func standard(_ name: String, pace: Pace = .withClass, lectures: String = "", recitations: String = "", homework: String = "", lectureCount: Int = 26) -> Course {
         Course(name: name, pace: pace, tracks: [
@@ -125,7 +124,7 @@ struct Course: Codable, Identifiable, Hashable, Sendable {
         ])
     }
 
-    /// track.html seed strings: d=done t=todo r=revisit s=skipped .=empty
+    /// Cube states from a string, for sample data: d=done t=todo r=revisit s=skipped .=empty
     static func seed(_ s: String) -> [CellState] {
         s.map { ["d": .done, "t": .todo, "r": .revisit, "s": .skipped][$0] ?? .empty }
     }
@@ -347,23 +346,4 @@ struct AppData: Codable, Sendable {
 
     /// A fresh install starts empty; the welcome window creates courses from Moodle.
     static var initial: AppData { AppData(courses: []) }
-}
-
-extension AppData {
-    /// Imports `localStorage["course-tracker-v1"]` from track.html: [{name, rows:[[state]]}] (or the old {weeks}).
-    static func importTrackHTML(_ json: String) throws -> [Course] {
-        struct Legacy: Decodable { var name: String; var rows: [[String]]? ; var weeks: [[String]]? }
-        let legacy = try JSONDecoder().decode([Legacy].self, from: Data(json.utf8))
-        let names = ["Lecture", "Recitation", "Homework"], kinds: [TrackKind] = [.lecture, .recitation, .homework]
-        let counts = [25, 13, 13], perWeek = [2, 1, 1]
-        return legacy.map { l in
-            let rows: [[String]] = l.rows ?? (0..<3).map { k in (l.weeks ?? []).map { $0.indices.contains(k) ? $0[k] : "" } }
-            let tracks = (0..<max(3, rows.count)).map { k in
-                let cells = (rows.indices.contains(k) ? rows[k] : []).map { CellState(rawValue: $0) ?? .empty }
-                return k < 3 ? Track(name: names[k], kind: kinds[k], count: max(counts[k], cells.count), perWeek: perWeek[k], cells: cells)
-                             : Track(name: "Row \(k + 1)", kind: .other, count: cells.count, perWeek: 1, cells: cells)
-            }
-            return Course(name: l.name, tracks: tracks)
-        }
-    }
 }

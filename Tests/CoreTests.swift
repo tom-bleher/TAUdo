@@ -137,16 +137,6 @@ final class ProgressTests: XCTestCase {
 }
 
 final class PersistenceTests: XCTestCase {
-    func testImportTrackHTML() throws {
-        let json = #"[{"name":"Methods","rows":[["done","done","skipped"],["todo"],["","done"]]},{"name":"Old","weeks":[["done","revisit","todo"]]}]"#
-        let c = try AppData.importTrackHTML(json)
-        XCTAssertEqual(c.map(\.name), ["Methods", "Old"])
-        XCTAssertEqual(c[0].tracks.map(\.count), [25, 13, 13])
-        XCTAssertEqual(c[0].tracks[0].cells.prefix(3), [.done, .done, .skipped])
-        XCTAssertEqual(c[1].tracks[1].cells.first, .revisit)
-        XCTAssertEqual(c[1].tracks[2].cells.first, .todo)
-    }
-
     func testDecodesOldOrPartialState() throws {
         let raw = #"{"courses":[{"name":"X","tracks":[{"name":"Lecture","cells":["done"]}]}],"settings":{"exportURL":"u"}}"#
         let d = try JSONDecoder().decode(AppData.self, from: Data(raw.utf8))
