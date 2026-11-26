@@ -49,8 +49,9 @@ enum Notifier {
     static func reschedule(_ plan: Plan, now: Date = .now) async {
         let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) || $0.hasPrefix(digestPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: ours)
-        // macOS caps pending notifications per app (~64), so only the next two weeks.
+        // macOS keeps about 64 pending notifications per app: plan the next two weeks, then schedule the soonest.
         let horizon = now.addingTimeInterval(14 * 86400)
+        var planned: [(id: String, content: UNNotificationContent, fire: Date)] = []
         let relative = RelativeDateTimeFormatter()
         relative.locale = Lang.locale
         if plan.reminders {
@@ -66,7 +67,7 @@ enum Notifier {
                     content.body = String(localized: "Due \(d.due.medium(time: !d.event.isAllDay)) (\(relative.localizedString(for: d.due, relativeTo: fire)))")
                     content.sound = sound ? .default : nil
                     content.categoryIdentifier = category
-                    await add("\(prefix)\(d.id).\(lead)", content, at: fire, now: now)
+                    planned.append(("\(prefix)\(d.id).\(lead)", content, fire))
                 }
             }
         }
@@ -81,10 +82,17 @@ enum Notifier {
                 content.title = text.title
                 content.body = text.body
                 content.sound = sound ? .default : nil
-                await add("\(digestPrefix)\(Int(day.timeIntervalSince1970))", content, at: fire, now: now)
+                planned.append(("\(digestPrefix)\(Int(day.timeIntervalSince1970))", content, fire))
             }
         }
+        for p in planned.sorted(by: { $0.fire < $1.fire }).prefix(maxPending) {
+            if Task.isCancelled { return }
+            await add(p.id, p.content, at: p.fire, now: now)
+        }
     }
+
+    /// Below macOS's limit of about 64, leaving room for alerts shown right away.
+    static let maxPending = 56
 
     /// Shows a notification right away (new or moved deadlines, finished downloads).
     static func post(_ title: String, _ body: String, id: String = UUID().uuidString, open url: URL? = nil) {
