@@ -367,6 +367,16 @@ final class ExamTabTests: XCTestCase {
         d.settings.examsWithDeadlines = true
         XCTAssertEqual(d.dueDeadlines().map(\.id), ["arazim-1", "hw"])
     }
+
+    /// Arazim lists midterms in a special sitting ("מ"), whose title names no exam the classifier knows.
+    func testEveryArazimEventIsAnExam() throws {
+        let catalog = #"{"03211100": {"exams": [{"moed": "מ", "date": "14/05/2027", "hour": "09:00", "type": "בחינת ביניים"}]}}"#
+        var d = AppData(courses: [])
+        d.exams = try Arazim.exams(catalog: Data(catalog.utf8), moodleKeys: ["0321110001 - Algebra"])
+        XCTAssertEqual(d.exams.map(\.summary), ["בחינת ביניים מועד מ"])
+        XCTAssertEqual(d.deadlines().map(\.isExam), [true])
+        XCTAssertEqual(d.dueDeadlines(), [])
+    }
 }
 
 final class SubmittedVsSolvedTests: XCTestCase {

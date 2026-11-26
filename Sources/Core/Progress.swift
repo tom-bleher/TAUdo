@@ -13,10 +13,12 @@ struct Deadline: Identifiable, Hashable, Sendable {
     var id: String { event.uid }
     var due: Date { event.due }
     var title: String { Classifier.cleanTitle(event.summary) }
-    var isExam: Bool { Classifier.isExam(event.summary) }
+    /// Everything from Arazim is an exam, whatever its title ("בחינת ביניים מועד מ" has no word the classifier knows).
+    var isExam: Bool { isArazim || Classifier.isExam(event.summary) }
     var isManual: Bool { event.uid.hasPrefix("manual-") }
+    var isArazim: Bool { event.uid.hasPrefix("arazim-") }
     /// Not from the Moodle feed: added by hand or from Arazim.
-    var isExtra: Bool { isManual || event.uid.hasPrefix("arazim-") }
+    var isExtra: Bool { isManual || isArazim }
 }
 
 extension AppData {
