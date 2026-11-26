@@ -195,7 +195,7 @@ final class ConnectTests: XCTestCase {
         let ev = { (uid: String) in MoodleEvent(uid: uid, summary: "HW", start: at, end: at) }
         XCTAssertEqual(d.moodleURL(for: ev("9448@moodle.tau.ac.il"))?.absoluteString, "https://moodle.tau.ac.il/mod/assign/view.php?id=77")
         XCTAssertEqual(d.moodleURL(for: ev("9449@moodle.tau.ac.il"))?.absoluteString,
-                       "https://moodle.tau.ac.il/calendar/view.php?view=day&time=1800000000")
+                       "https://moodle.tau.ac.il/calendar/view.php?view=day&time=1800000000#event_9449")
         XCTAssertNil(d.moodleURL(for: ev("arazim-1-א-2027-01-01")))
         XCTAssertNil(d.moodleURL(for: ev("manual-x")))
     }

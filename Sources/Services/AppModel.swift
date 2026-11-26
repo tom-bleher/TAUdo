@@ -396,7 +396,7 @@ final class AppModel {
             if !e.isAllDay { title += " · " + AllDay.time(moment, day: day) }
             let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.due, day: day) } ?? []
             return .init(uid: e.uid, title: title, start: day, end: day,
-                         isAllDay: true, notes: e.description, url: data.moodleURL(for: e), alarms: alarms)
+                         isAllDay: true, notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
         }
     }
 

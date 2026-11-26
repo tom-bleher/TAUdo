@@ -230,14 +230,15 @@ extension AppData {
     /// The course's pace: with the class unless self-study is turned on.
     func pace(_ c: Course) -> Pace { settings.selfStudy ? c.pace : .withClass }
 
-    /// Where a Moodle event opens: its activity page if known, else Moodle's calendar on its day (which links to
-    /// the activity). nil for exams from Arazim and your own deadlines.
+    /// Where a Moodle event opens: its activity page from the bookmark, else a Moodle link in its description, else
+    /// Moodle's calendar on its day (which links to the activity). nil for exams from Arazim and your own deadlines.
     func moodleURL(for e: MoodleEvent) -> URL? {
+        let id = e.moodleEventID
+        if let u = id.flatMap({ moodleLinks[String($0)] }).flatMap(URL.init(string:)) { return u }
         if let u = e.url.flatMap(URL.init(string:)) { return u }
-        guard let id = e.moodleEventID else { return nil }
-        if let u = moodleLinks[String(id)].flatMap(URL.init(string:)) { return u }
+        guard let id else { return nil }
         let base = settings.moodleBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return URL(string: "\(base)/calendar/view.php?view=day&time=\(Int(e.start.timeIntervalSince1970))")
+        return URL(string: "\(base)/calendar/view.php?view=day&time=\(Int(e.start.timeIntervalSince1970))#event_\(id)")
     }
 
     /// The course's Panopto recordings (from its linked Moodle course).
