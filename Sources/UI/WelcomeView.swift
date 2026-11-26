@@ -89,7 +89,7 @@ struct WelcomeView: View {
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
-                Button("Done") {
+                Button(String(localized: "welcome.done", defaultValue: "Done", comment: "Closes the welcome window")) {
                     if openAtLogin { try? SMAppService.mainApp.register() }
                     model.finishOnboarding(); onDone()
                 }
