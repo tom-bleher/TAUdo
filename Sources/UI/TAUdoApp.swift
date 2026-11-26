@@ -27,6 +27,11 @@ struct TAUdoApp: App {
 
         Window("Welcome to TAUdo", id: "welcome") { WelcomeWindow().environment(model).environment(\.locale, Lang.locale).environment(\.layoutDirection, Lang.direction) }
             .windowResizability(.contentSize)
+
+        Window(Text(verbatim: "TAUdo"), id: AppWindow.id) {
+            AppWindow().environment(model).environment(\.locale, Lang.locale).environment(\.layoutDirection, Lang.direction)
+        }
+        .defaultSize(width: 640, height: 720)
     }
 }
 
@@ -52,6 +57,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         [.banner, .sound]
     }
 
+    /// Opening TAUdo again (Spotlight, Launchpad, Finder) while it runs: show its window.
+    @MainActor func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if Self.model.data.onboarded { Self.model.showWindow() }
+        return true
+    }
+
     /// taudo://sync links from the bookmarklet.
     @MainActor func application(_ app: NSApplication, open urls: [URL]) {
         urls.forEach(Self.model.handle)
@@ -62,6 +73,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         Notifier.registerActions()
         Self.model.start()
         _ = Updates.shared
+        // Opened by you (not at login, not for a taudo:// link): show the window, like any app.
+        let launch = NSAppleEventManager.shared().currentAppleEvent
+        let atLogin = launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        if launch?.eventID == kAEOpenApplication, !atLogin, Self.model.data.onboarded,
+           !["--snapshot", "--preview", "--settings"].contains(where: CommandLine.arguments.contains) {
+            Self.model.showWindow()
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.indices.contains(i + 1) {
             let dir = URL(fileURLWithPath: CommandLine.arguments[i + 1])
             Task { await Snapshot.run(into: dir, model: Self.model) }
@@ -79,10 +97,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 }
 
-/// The welcome window's root: closes itself when done.
+/// The welcome window's root: when done, closes itself and shows TAUdo's window.
 struct WelcomeWindow: View {
     @Environment(\.dismissWindow) private var dismissWindow
-    var body: some View { WelcomeView { dismissWindow(id: "welcome") } }
+    @Environment(\.openWindow) private var openWindow
+    var body: some View { WelcomeView { dismissWindow(id: "welcome"); openWindow(id: AppWindow.id) } }
 }
 
 struct MenuBarLabel: View {
@@ -99,12 +118,15 @@ struct MenuBarLabel: View {
             Text(String(localized: "\(label.overdue) overdue"))
         }
         // First launch: open the welcome window (the label is the one view that exists at launch).
+        // It also opens TAUdo's window when asked from outside SwiftUI (launch, reopen).
         Color.clear.frame(width: 0, height: 0).onAppear {
+            if model.windowRequests > 0 { openWindow(id: AppWindow.id) }
             // `--settings` opens the Settings window at launch (for checking its layout).
             if CommandLine.arguments.contains("--settings") { NSApp.activate(ignoringOtherApps: true); openSettings() }
             guard !model.data.onboarded, !CommandLine.arguments.contains("--snapshot") else { return }
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: "welcome")
         }
+        .onChange(of: model.windowRequests) { openWindow(id: AppWindow.id) }
     }
 }

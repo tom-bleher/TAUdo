@@ -21,6 +21,7 @@ struct PanelView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @AppStorage("panelTab") private var tab = Tab.due
     @State private var contentHeight: CGFloat = 400
     @State private var adding: Bool
@@ -34,18 +35,9 @@ struct PanelView: View {
             header
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    notices
-                    // Show the tab the new item lands on, so it doesn't seem to vanish.
-                    if adding { AddDeadline { isExam in adding = false; if let isExam { tab = isExam ? .exams : .due } } }
-                    switch tab {
-                    case .due: DeadlineList()
-                    case .exams: ExamList()
-                    case .courses: CourseList()
-                    }
-                }
-                .padding(12)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+                PanelContent(tab: $tab, adding: $adding)
+                    .padding(12)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
             // Menu bar windows size to their content; a bare ScrollView has none, so size it explicitly.
             .frame(height: min(max(contentHeight, 80), 600))
@@ -59,19 +51,9 @@ struct PanelView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Picker("", selection: $tab) {
-                Text("Deadlines").tag(Tab.due)
-                Text("Progress").tag(Tab.courses)
-                Text("Exams").tag(Tab.exams)
-            }
-            .pickerStyle(.segmented).labelsHidden().fixedSize()
+            TabPicker(tab: $tab)
             Spacer()
-            Button { if tab == .courses { tab = .due }; adding.toggle() } label: { Image(systemName: "plus") }
-                .help(Text("Add exam or deadline")).keyboardShortcut("n")
-            Button { Task { await model.refresh() } } label: {
-                if model.syncing { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.clockwise") }
-            }
-            .disabled(model.syncing).help(Text("Refresh from Moodle")).keyboardShortcut("r")
+            TabActions(tab: $tab, adding: $adding)
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -94,6 +76,7 @@ struct PanelView: View {
             }
             Spacer()
             Menu {
+                Button("Open TAUdo Window") { show { openWindow(id: AppWindow.id) } }.keyboardShortcut("o")
                 Button("Settings…") { show { openSettings() } }.keyboardShortcut(",")
                 Button("Check for Updates…") { show { Updates.shared.check() } }
                 Divider()
@@ -108,6 +91,63 @@ struct PanelView: View {
         .padding(.horizontal, 14).padding(.vertical, 6)
     }
 
+    /// Menu bar apps are background apps: bring the app forward so new windows aren't hidden.
+    private func show(_ action: () -> Void) {
+        NSApp.activate(ignoringOtherApps: true)
+        action()
+    }
+}
+
+/// The Deadlines / Progress / Exams switch, in the panel and the window.
+struct TabPicker: View {
+    @Binding var tab: PanelView.Tab
+
+    var body: some View {
+        Picker("", selection: $tab) {
+            Text("Deadlines").tag(PanelView.Tab.due)
+            Text("Progress").tag(PanelView.Tab.courses)
+            Text("Exams").tag(PanelView.Tab.exams)
+        }
+        .pickerStyle(.segmented).labelsHidden().fixedSize()
+    }
+}
+
+/// Add an exam or deadline, and refresh: next to the tabs in the panel, in the window's toolbar.
+struct TabActions: View {
+    @Environment(AppModel.self) private var model
+    @Binding var tab: PanelView.Tab
+    @Binding var adding: Bool
+
+    var body: some View {
+        Button { if tab == .courses { tab = .due }; adding.toggle() } label: { Image(systemName: "plus") }
+            .help(Text("Add exam or deadline")).keyboardShortcut("n")
+        Button { Task { await model.refresh() } } label: {
+            if model.syncing { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.clockwise") }
+        }
+        .disabled(model.syncing).help(Text("Refresh from Moodle")).keyboardShortcut("r")
+    }
+}
+
+/// What's under the tabs, in the panel and the window: notices, the add card, and the tab's list.
+struct PanelContent: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openSettings) private var openSettings
+    @Binding var tab: PanelView.Tab
+    @Binding var adding: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            notices
+            // Show the tab the new item lands on, so it doesn't seem to vanish.
+            if adding { AddDeadline { isExam in adding = false; if let isExam { tab = isExam ? .exams : .due } } }
+            switch tab {
+            case .due: DeadlineList()
+            case .exams: ExamList()
+            case .courses: CourseList()
+            }
+        }
+    }
+
     /// Only things that need you: errors, connecting Moodle, linking courses.
     @ViewBuilder private var notices: some View {
         if let e = model.loadError { Notice(text: e, systemImage: "exclamationmark.octagon.fill", color: .red) }
@@ -120,12 +160,6 @@ struct PanelView: View {
             }
         }
         if !model.unlinkedMoodleCourses.isEmpty { LinkCourses() }
-    }
-
-    /// Menu bar apps are background apps: bring the app forward so new windows aren't hidden.
-    private func show(_ action: () -> Void) {
-        NSApp.activate(ignoringOtherApps: true)
-        action()
     }
 }
 

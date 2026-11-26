@@ -467,6 +467,10 @@ final class AppModel {
 
     func finishOnboarding() { data.onboarded = true }
 
+    /// Asks for TAUdo's window from outside SwiftUI (launch, reopen); the menu bar label opens it.
+    private(set) var windowRequests = 0
+    func showWindow() { windowRequests += 1 }
+
     /// Moodle courses you said aren't yours that still have events in the feed (last year's don't count).
     var hiddenCourseCount: Int {
         data.ignoredCourseKeys.intersection(data.events.compactMap(\.courseKey)).count

@@ -9,7 +9,7 @@
 
 A macOS menu bar companion for Tel Aviv University students. It shows your Moodle deadlines and your progress in each course, and reminds you before things are due. Hebrew by default, with an English option.
 
-**Lives in the menu bar:** the next deadline at a glance, everything that's due one click away.
+**Lives in the menu bar:** the next deadline at a glance, everything that's due one click away. Open TAUdo from Spotlight or Launchpad for the same tabs in a regular window.
 
 <p align="center">
   <picture>
