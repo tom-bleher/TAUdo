@@ -230,6 +230,16 @@ extension AppData {
     /// The course's pace: with the class unless self-study is turned on.
     func pace(_ c: Course) -> Pace { settings.selfStudy ? c.pace : .withClass }
 
+    /// Where a Moodle event opens: its activity page if known, else Moodle's calendar on its day (which links to
+    /// the activity). nil for exams from Arazim and your own deadlines.
+    func moodleURL(for e: MoodleEvent) -> URL? {
+        if let u = e.url.flatMap(URL.init(string:)) { return u }
+        guard let id = e.moodleEventID else { return nil }
+        if let u = moodleLinks[String(id)].flatMap(URL.init(string:)) { return u }
+        let base = settings.moodleBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return URL(string: "\(base)/calendar/view.php?view=day&time=\(Int(e.start.timeIntervalSince1970))")
+    }
+
     /// The course's Panopto recordings (from its linked Moodle course).
     func recordings(for c: Course) -> [Recording] {
         c.moodleKey.flatMap { recordings[$0] } ?? []
@@ -314,6 +324,8 @@ struct AppData: Codable, Sendable {
     var lastStatusCheck: Date?
     /// Panopto recordings by Moodle course shortname (sent by the sync bookmark).
     var recordings: [String: [Recording]] = [:]
+    /// Moodle event ID → its activity page (sent by the sync bookmark; the export has no links).
+    var moodleLinks: [String: String] = [:]
 
     init(courses: [Course]) { self.courses = courses }
 
@@ -342,6 +354,7 @@ struct AppData: Codable, Sendable {
         lastStatusCheck = try c.decodeIfPresent(Date.self, forKey: .lastStatusCheck)
         moodleCourseNames = try c.decodeIfPresent([String: String].self, forKey: .moodleCourseNames) ?? [:]
         recordings = try c.decodeIfPresent([String: [Recording]].self, forKey: .recordings) ?? [:]
+        moodleLinks = try c.decodeIfPresent([String: String].self, forKey: .moodleLinks) ?? [:]
     }
 
     /// A fresh install starts empty; the welcome window creates courses from Moodle.

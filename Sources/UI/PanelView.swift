@@ -344,7 +344,7 @@ struct DeadlineRow: View {
     var body: some View {
         let left = d.due.timeIntervalSince(model.now)
         let urgency: Color? = left < 0 ? .red : left < 86400 ? .orange : nil
-        let link = d.event.url.flatMap(URL.init(string:))
+        let link = model.data.moodleURL(for: d.event)
         HStack(spacing: 9) {
             Button { model.toggle(d) } label: {
                 Image(systemName: d.isDone ? "checkmark.circle.fill" : "circle")

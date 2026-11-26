@@ -251,6 +251,9 @@ final class AppModel {
         Task {
             await refresh()
             data.applySubmissions(Set(p.submitted ?? []))
+            // Remember links for the events TAUdo has, dropping those of events that are gone.
+            let ids = Set(data.events.compactMap(\.moodleEventID).map(String.init))
+            data.moodleLinks = data.moodleLinks.merging(p.validLinks(host: moodleHost)) { _, new in new }.filter { ids.contains($0.key) }
             push()
         }
     }
@@ -390,7 +393,7 @@ final class AppModel {
             if !e.isAllDay { title += " · " + AllDay.time(moment, day: day) }
             let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.due, day: day) } ?? []
             return .init(uid: e.uid, title: title, start: day, end: day,
-                         isAllDay: true, notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
+                         isAllDay: true, notes: e.description, url: data.moodleURL(for: e), alarms: alarms)
         }
     }
 

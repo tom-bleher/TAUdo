@@ -59,6 +59,7 @@ Some details:
 - Homework deadlines are matched to cubes by course and number (`תרגיל בית 3`, `הגשת שיעורי בית 3`, `HW 3`, `Problem Set 3`, …).
 - Moodle courses are linked to your courses by name, or by the TAU course code if it appears in the course's files.
 - Moodle's export only looks back a few days, so TAUdo keeps this semester's past events.
+- Moodle's export has no links. The bookmark also sends each event's activity page from Moodle's calendar (`core_calendar_get_calendar_monthly_view`), so *Open in Moodle* on a deadline or homework cube goes there; before that, it opens Moodle's calendar on the due date.
 - An assignment also leaves the to-do list when its completion condition (e.g. viewing it) is met, hence the check on its page. Untick a deadline to override; TAUdo never re-applies the same report.
 - TAU Moodle opens in guest mode, and guests get a session too. The bookmark only runs on pages with a logout link, and TAUdo ignores guest export links (`userid=1`).
 

@@ -180,6 +180,26 @@ final class ConnectTests: XCTestCase {
         XCTAssertNil(MoodleConnect.payload(from: URL(string: "taudo://other?d=x")!))
     }
 
+    /// Deadlines open their Moodle page: the activity the bookmark linked, else Moodle's calendar on that day.
+    func testMoodleLinks() throws {
+        var c = URLComponents(string: "taudo://sync")!
+        c.queryItems = [URLQueryItem(name: "d", value: #"{"base":"x","v":4,"links":{"#
+            + #""9448":"https://moodle.tau.ac.il/mod/assign/view.php?id=77","1":"https://evil.example/mod/x","#
+            + #""2":"https://moodle.tau.ac.il/login/logout.php","x":"https://moodle.tau.ac.il/mod/quiz/view.php?id=1"}}"#)]
+        let p = try XCTUnwrap(MoodleConnect.payload(from: c.url!))
+        XCTAssertEqual(p.validLinks(host: "moodle.tau.ac.il"), ["9448": "https://moodle.tau.ac.il/mod/assign/view.php?id=77"])
+
+        var d = AppData(courses: [])
+        d.moodleLinks = p.validLinks(host: "moodle.tau.ac.il")
+        let at = Date(timeIntervalSince1970: 1_800_000_000)
+        let ev = { (uid: String) in MoodleEvent(uid: uid, summary: "HW", start: at, end: at) }
+        XCTAssertEqual(d.moodleURL(for: ev("9448@moodle.tau.ac.il"))?.absoluteString, "https://moodle.tau.ac.il/mod/assign/view.php?id=77")
+        XCTAssertEqual(d.moodleURL(for: ev("9449@moodle.tau.ac.il"))?.absoluteString,
+                       "https://moodle.tau.ac.il/calendar/view.php?view=day&time=1800000000")
+        XCTAssertNil(d.moodleURL(for: ev("arazim-1-א-2027-01-01")))
+        XCTAssertNil(d.moodleURL(for: ev("manual-x")))
+    }
+
     /// Bookmarks before version 4 inferred "submitted" from Moodle's to-do list, which also drops assignments whose
     /// completion condition (e.g. "view") is met: their reports are ignored.
     func testOldBookmarksReportNoSubmissions() throws {

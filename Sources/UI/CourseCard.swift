@@ -131,7 +131,7 @@ struct CourseCard: View {
                 }
                 Divider()
                 Button("The class is here") { model.setClassPosition(ci, ti, to: i + 1) }
-                if let u = link?.url.flatMap(URL.init(string:)) { Button("Open in Moodle") { NSWorkspace.shared.open(u) } }
+                if let u = link.flatMap(model.data.moodleURL(for:)) { Button("Open in Moodle") { NSWorkspace.shared.open(u) } }
             }
     }
 }

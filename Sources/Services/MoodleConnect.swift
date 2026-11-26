@@ -13,6 +13,8 @@ enum MoodleConnect {
         /// Moodle event IDs of assignment deadlines whose page says "submitted" (bookmark version 4 and up).
         /// nil if they couldn't be checked: then nothing counts as submitted.
         var submitted: [Int]?
+        /// Moodle event ID → its activity page, from Moodle's calendar.
+        var links: [String: String]?
         /// Course shortname → full name, from Moodle's calendar.
         var courses: [String: String]?
         /// Set when the bookmark was clicked on a course page and you chose to download its files.
@@ -29,6 +31,14 @@ enum MoodleConnect {
             var name: String
             var sections: [String: String]?
             var count: Int
+        }
+
+        /// The activity links that are pages of `host`'s Moodle activities, by Moodle event ID.
+        func validLinks(host: String) -> [String: String] {
+            (links ?? [:]).filter { id, s in
+                guard Int(id) != nil, let u = URL(string: s), u.scheme == "https", u.host == host else { return false }
+                return u.path.contains("/mod/")
+            }
         }
 
         /// The recordings that are Panopto viewer links, by course.
@@ -58,6 +68,7 @@ enum MoodleConnect {
         else { return nil }
         guard d.utf8.count < 200_000, var p = try? JSONDecoder().decode(Payload.self, from: Data(d.utf8)) else { return nil }
         p.submitted = p.submitted.map { Array($0.prefix(2000)) }
+        p.links = p.links.map { Dictionary(uniqueKeysWithValues: $0.prefix(2000).map { ($0.key, $0.value) }) }
         return p
     }
 
@@ -187,28 +198,37 @@ enum MoodleConnect {
       // Which assignments are submitted. An assignment leaves Moodle's to-do list once it's submitted, but also once its
       // completion condition is met (e.g. "view"), so each one that left the list is confirmed on its own page.
       // The to-do list query is one of the few that doesn't hold the session lock. Nothing confirmed: null.
+      // Moodle's calendar also gives each event's activity page, which TAUdo opens from a deadline or cube.
       let submitted = null;
+      const links = {};
       const submissions = async () => {
         try {
           const LIMIT = 50;
-          const [pending] = await ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]);
-          if (!pending || pending.error || !pending.data) return;
-          const evs = pending.data.events || [];
-          const pendingIDs = new Set(evs.map(e => e.id));
-          // A cut-off list may have dropped some of the deadlines due at its last moment: check only before it.
-          const until = evs.length >= LIMIT ? Math.max(...evs.map(e => e.timesort || e.timestart)) : Infinity;
-          // Assignments due from two weeks ago (earlier ones were checked on earlier clicks) to two months ahead.
+          // Events due from two weeks ago (earlier ones were seen on earlier clicks) to two months ahead.
           const since = Date.now() / 1000 - 14 * 86400;
           const months = [], d = new Date(since * 1000), end = new Date(Date.now() + 60 * 86400000);
           d.setDate(1);
           while (d <= end) { months.push([d.getFullYear(), d.getMonth() + 1]); d.setMonth(d.getMonth() + 1); }
-          const check = new Map();
-          for (const v of await ajax(months.map(([y, m]) => ["core_calendar_get_calendar_monthly_view", {year: y, month: m, courseid: 1, day: 1}]))) {
-            if (!v || v.error) return;
+          const [[pending], views] = await Promise.all([
+            ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]),
+            ajax(months.map(([y, m]) => ["core_calendar_get_calendar_monthly_view", {year: y, month: m, courseid: 1, day: 1}]))]);
+          const events = [];
+          for (const v of views) {
+            if (!v || v.error) continue;
             for (const w of v.data.weeks || []) for (const day of w.days || []) for (const e of day.events || []) {
-              if (e.modulename === "assign" && e.eventtype === "due" && e.url && e.timestart >= since && e.timestart < until
-                  && !pendingIDs.has(e.id)) check.set(e.id, e.url);
+              if (e.url) links[e.id] = e.url;
+              events.push(e);
             }
+          }
+          if (!pending || pending.error || !pending.data || views.some(v => !v || v.error)) return;
+          const evs = pending.data.events || [];
+          const pendingIDs = new Set(evs.map(e => e.id));
+          // A cut-off list may have dropped some of the deadlines due at its last moment: check only before it.
+          const until = evs.length >= LIMIT ? Math.max(...evs.map(e => e.timesort || e.timestart)) : Infinity;
+          const check = new Map();
+          for (const e of events) {
+            if (e.modulename === "assign" && e.eventtype === "due" && e.url && e.timestart >= since && e.timestart < until
+                && !pendingIDs.has(e.id)) check.set(e.id, e.url);
           }
           const found = [], todo = [...check];
           const worker = async () => {
@@ -324,7 +344,7 @@ enum MoodleConnect {
         took.download = Math.round(performance.now() - t0);
       }
       ui.done(download ? __SENT__.replace("{n}", download.count) : __DONE__);
-      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 4, key: "__KEY__", base, exportURL, submitted, courses, download, recordings, took}));
+      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 4, key: "__KEY__", base, exportURL, submitted, links, courses, download, recordings, took}));
     })();
     """#
 
