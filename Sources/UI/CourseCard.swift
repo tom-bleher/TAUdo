@@ -49,7 +49,7 @@ struct CourseCard: View {
             let lead = Pacing.yourPosition(t) - Pacing.plannedPosition(t, course: course, classPos: classPos, settings: s, now: model.now)
             let ownPace = model.data.pace(course) == .selfStudy
             if lead != 0 {
-                Tag(text: Text(verbatim: lead > 0 ? "+\(lead)" : "−\(-lead)").monospacedDigit(), color: lead > 0 ? Palette.cell(.done) : .orange)
+                Tag(text: Text(verbatim: Lang.ltr(lead > 0 ? "+\(lead)" : "−\(-lead)")).monospacedDigit(), color: lead > 0 ? Palette.cell(.done) : .orange)
                     .help(ownPace ? (lead > 0 ? Text("\(lead) ahead of your plan") : Text("\(-lead) behind your plan"))
                                   : (lead > 0 ? Text("\(lead) ahead of the class") : Text("\(-lead) behind the class")))
             }

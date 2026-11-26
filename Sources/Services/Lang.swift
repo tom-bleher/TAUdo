@@ -34,6 +34,10 @@ enum Lang {
         (isHebrew ? "\u{200F}" : "\u{200E}") + parts.map { "\u{2068}\($0)\u{2069}" }.joined(separator: " · ")
     }
 
+    /// Keeps text that reads left to right (a signed number like "+3") in its order inside Hebrew text, where it
+    /// would otherwise show as "3+".
+    static func ltr(_ s: String) -> String { "\u{2066}\(s)\u{2069}" }
+
     private static func relaunch() {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")

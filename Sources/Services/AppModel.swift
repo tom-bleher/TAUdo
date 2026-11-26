@@ -342,7 +342,7 @@ final class AppModel {
             if data.settings.calendarID != cal.calendarIdentifier { data.settings.calendarID = cal.calendarIdentifier }
             // Read after the access prompt, so course indices match the courses as they are now.
             let r = try calendar.sync(plannedEvents(data.deadlines()), into: cal, keepBefore: data.settings.semesterStart)
-            calendarStatus = String(localized: "Calendar “\(cal.title)” is up to date") + (r.created + r.updated + r.deleted > 0 ? " (+\(r.created) ~\(r.updated) −\(r.deleted))" : "")
+            calendarStatus = String(localized: "Calendar “\(cal.title)” is up to date") + (r.created + r.updated + r.deleted > 0 ? " " + Lang.ltr("(+\(r.created) ~\(r.updated) −\(r.deleted))") : "")
             return true
         } catch {
             calendarStatus = String(localized: "Calendar sync failed: \(error.localizedDescription)")
