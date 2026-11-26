@@ -25,8 +25,14 @@ struct WelcomeView: View {
             }
 
             VStack(spacing: 0) {
-                step(1, done: connected, title: "Connect Moodle") {
-                    if connected {
+                step(1, done: connected && model.feedError == nil && model.data.lastSync != nil, title: "Connect Moodle") {
+                    if connected && model.syncing && model.data.lastSync == nil {
+                        Text("Syncing…").foregroundStyle(.secondary)
+                    } else if connected, let error = model.feedError {
+                        // The link didn't work: say why, and offer to connect again.
+                        Text(model.connectStatus ?? error).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                        Button("Open Moodle in browser") { model.connect() }.buttonStyle(.borderedProminent)
+                    } else if connected {
                         Text("Connected. Deadlines sync on their own.").foregroundStyle(.secondary)
                     } else {
                         Text(model.connectStatus ?? String(localized: "Log in to Moodle in your browser and copy your calendar link. TAUdo picks it up from the clipboard."))
