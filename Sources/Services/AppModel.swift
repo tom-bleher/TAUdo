@@ -66,8 +66,12 @@ final class AppModel {
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
+                let started = Date()
                 await self.refresh()
-                try? await Task.sleep(for: .seconds(max(5, self.data.settings.refreshMinutes) * 60))
+                // Check each minute, so a new refresh interval applies right away.
+                while !Task.isCancelled, Date().timeIntervalSince(started) < Double(max(5, self.data.settings.refreshMinutes) * 60) {
+                    try? await Task.sleep(for: .seconds(60))
+                }
             }
         }
         Task { [weak self] in
