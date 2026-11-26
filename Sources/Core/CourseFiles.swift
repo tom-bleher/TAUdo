@@ -33,10 +33,17 @@ struct CourseFiles: Sendable, Equatable {
         guard let en = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey],
                                                       options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return out }
         var seen = 0
+        // Path components of the course folder as the enumerator spells it (it may resolve a symlink in `root`,
+        // e.g. /var → /private/var): the first item it returns is a direct child.
+        var rootDepth: Int?
+        /// Homework folders found so far (paths relative to the course folder).
+        var homework: [String] = []
         for case let url as URL in en {
             seen += 1
             if seen > maxFiles { break }
-            let rel = Array(url.pathComponents.dropFirst(root.pathComponents.count))
+            let depth = rootDepth ?? url.deletingLastPathComponent().pathComponents.count
+            rootDepth = depth
+            let rel = Array(url.pathComponents.dropFirst(depth))
             let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
             if isDir && (skip.contains(url.lastPathComponent.lowercased()) || rel.count >= 4) { en.skipDescendants(); continue }
             let name = url.deletingPathExtension().lastPathComponent
@@ -44,9 +51,12 @@ struct CourseFiles: Sendable, Equatable {
             guard let kind = kind(rel), let n = number(name) else { continue }
             let ext = url.pathExtension.lowercased()
             switch kind {
-            // A homework item is its pset folder (statement, your .lyx and solution PDF live inside).
+            // A homework item is its pset folder (statement, your .lyx and solution PDF live inside). What's inside
+            // belongs to it: psets/pset1/q2 isn't homework 2.
             case .homework:
-                guard isDir, rel.count >= 2 else { continue }
+                let path = rel.joined(separator: "/")
+                guard isDir, rel.count >= 2, !homework.contains(where: { path.hasPrefix($0 + "/") }) else { continue }
+                homework.append(path)
             case .recitation:
                 guard !isDir, ext == "pdf" else { continue }
             case .lecture, .other:
