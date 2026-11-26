@@ -17,8 +17,9 @@ struct MoodleEvent: Codable, Hashable, Identifiable, Sendable {
     var courseKey: String? { categories.first }
     /// Moodle UIDs look like "12345@moodle.tau.ac.il".
     var moodleEventID: Int? { uid.split(separator: "@").first.flatMap { Int($0) } }
-    /// Deadlines are exported as zero-length events at the due time.
-    var due: Date { end }
+    /// Deadlines are exported as zero-length events at the due time. An exam that lasts a while is due when it starts;
+    /// an all-day one at the end of its day.
+    var due: Date { end > start && !isAllDay && Classifier.isExam(summary) ? start : end }
 }
 
 /// Minimal RFC 5545 reader — enough for Moodle's export (folded lines, TEXT escapes, UTC/TZID/date values).

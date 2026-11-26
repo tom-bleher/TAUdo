@@ -375,10 +375,10 @@ final class AppModel {
             var title = (course.map { "[\($0)] " } ?? "") + Classifier.cleanTitle(e.summary)
             if let d { title = (d.isDone ? "✅ " : d.due < now ? "🔴 " : "⬜ ") + title }
             // All-day events on the day they fall; the time goes in the title.
-            let moment = d != nil ? e.end : e.start
+            let moment = d != nil ? e.due : e.start
             let day = e.isAllDay ? Calendar.current.startOfDay(for: e.start) : AllDay.day(of: moment, isDeadline: d != nil)
             if !e.isAllDay { title += " · " + AllDay.time(moment, day: day) }
-            let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.end, day: day) } ?? []
+            let alarms = d.map { $0.isDone ? [] : AllDay.alarms(leadMinutes: s.reminderMinutes, due: e.due, day: day) } ?? []
             return .init(uid: e.uid, title: title, start: day, end: day,
                          isAllDay: true, notes: e.description, url: e.url.flatMap(URL.init(string:)), alarms: alarms)
         }

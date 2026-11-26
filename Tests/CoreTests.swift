@@ -360,6 +360,14 @@ final class ExamTabTests: XCTestCase {
         XCTAssertEqual(d.dueDeadlines().map(\.id), ["arazim-1", "hw"])
     }
 
+    /// A Moodle exam with a length is due when it starts; anything else when it ends.
+    func testTimedExamIsDueAtItsStart() {
+        let at = Settings.day(2026, 12, 10) + 14 * 3600
+        XCTAssertEqual(MoodleEvent(uid: "1", summary: "מבחן אמצע", start: at, end: at + 7200).due, at)
+        XCTAssertEqual(MoodleEvent(uid: "2", summary: "תאריך הגשה בוחן 3", start: at, end: at + 7200).due, at + 7200)
+        XCTAssertEqual(MoodleEvent(uid: "3", summary: "בחינה מועד א", start: at, end: at + 86399, isAllDay: true).due, at + 86399)
+    }
+
     /// Arazim lists midterms in a special sitting ("מ"), whose title names no exam the classifier knows.
     func testEveryArazimEventIsAnExam() throws {
         let catalog = #"{"03211100": {"exams": [{"moed": "מ", "date": "14/05/2027", "hour": "09:00", "type": "בחינת ביניים"}]}}"#
