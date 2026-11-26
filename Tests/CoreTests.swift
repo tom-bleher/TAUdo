@@ -522,6 +522,18 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(group(27), .thisWeek)
         XCTAssertEqual(group(6 * 24), .thisWeek)
         XCTAssertEqual(group(7 * 24), .later)
+        XCTAssertEqual(group(2), .today, "due at midnight: the end of today, as in the calendar")
+    }
+
+    /// A deadline at midnight is in the digest of the day it ends, not the day after.
+    func testDigestMidnight() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Jerusalem")!
+        let morning = cal.date(from: DateComponents(year: 2026, month: 11, day: 23, hour: 8))!
+        let midnight = cal.date(from: DateComponents(year: 2026, month: 11, day: 24))!
+        let d = Deadline(event: MoodleEvent(uid: "m", summary: "HW 1", start: midnight, end: midnight), courseIndex: nil, cell: nil, isDone: false)
+        XCTAssertEqual(Digest.text([d], morning: morning, courseName: { _ in "" }, calendar: cal)?.body.hasPrefix(String(localized: "Today:")), true)
+        XCTAssertNil(Digest.text([d], morning: midnight + 8 * 3600, courseName: { _ in "" }, calendar: cal), "already past")
     }
 
     func testArazimExams() throws {

@@ -62,7 +62,10 @@ extension Date {
     func dueLabel(_ group: DueGroup, time: Bool = true) -> String {
         let f = Date.FormatStyle(locale: Lang.locale)
         switch group {
-        case .today, .tomorrow: return formatted(time ? f.hour().minute() : f.weekday(.wide))
+        // Under Today or Tomorrow, a midnight deadline ends that day: "24:00", as in the calendar.
+        case .today, .tomorrow:
+            guard time else { return formatted(f.weekday(.wide)) }
+            return AllDay.day(of: self, isDeadline: true) < Calendar.current.startOfDay(for: self) ? "24:00" : formatted(f.hour().minute())
         case .thisWeek: return formatted(time ? f.weekday(.wide).hour().minute() : f.weekday(.wide))
         case .overdue, .later: return formatted(time ? f.day().month(.abbreviated).hour().minute() : f.day().month(.abbreviated))
         }

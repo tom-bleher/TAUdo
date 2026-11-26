@@ -6,11 +6,12 @@ enum Digest {
     static func text(_ deadlines: [Deadline], morning: Date, courseName: (Deadline) -> String,
                      calendar cal: Calendar = .current) -> (title: String, body: String)? {
         let today = cal.startOfDay(for: morning)
-        guard let tomorrow = cal.date(byAdding: .day, value: 1, to: today),
-              let after = cal.date(byAdding: .day, value: 2, to: today) else { return nil }
+        guard let tomorrow = cal.date(byAdding: .day, value: 1, to: today) else { return nil }
         let open = deadlines.filter { !$0.isDone }
-        let dueToday = open.filter { $0.due >= morning && $0.due < tomorrow }
-        let dueTomorrow = open.filter { $0.due >= tomorrow && $0.due < after }
+        // A deadline at midnight belongs to the day it ends (see AllDay.day).
+        let day = { (d: Deadline) in AllDay.day(of: d.due, isDeadline: true, calendar: cal) }
+        let dueToday = open.filter { $0.due >= morning && day($0) == today }
+        let dueTomorrow = open.filter { day($0) == tomorrow }
         guard !dueToday.isEmpty || !dueTomorrow.isEmpty else { return nil }
         let line = { (d: Deadline) in "• \(d.title) · \(courseName(d))" }
         var parts: [String] = []
