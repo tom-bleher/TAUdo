@@ -5,9 +5,20 @@ struct CourseCard: View {
     @Environment(AppModel.self) private var model
     let ci: Int
 
-    private let cube: CGFloat = 12, gap: CGFloat = 3
-    /// Cubes per line: a semester of two sessions a week. Longer rows wrap.
-    private let perLine = 26
+    private let cube: CGFloat = 19, gap: CGFloat = 3.5
+    private let labelWidth: CGFloat = 30, labelGap: CGFloat = 6, cardPadding: CGFloat = 10
+    @State private var cardWidth: CGFloat = 0
+
+    /// Cubes per line that fit in the card's current width. When a row has to wrap, split it into balanced lines
+    /// (so 26 lectures wrap as 13 + 13 instead of 17 + 9, aligning with 13-session rows below).
+    private func perLine(for count: Int) -> Int {
+        let available = cardWidth - 2 * cardPadding - labelWidth - labelGap
+        guard available > cube else { return min(max(count, 1), 13) }
+        let maxFit = max(1, Int(floor((available + gap) / (cube + gap))))
+        guard count > maxFit else { return max(count, 1) }
+        let lineCount = (count + maxFit - 1) / maxFit
+        return (count + lineCount - 1) / lineCount
+    }
 
     var body: some View {
         let course = model.data.courses[ci]
@@ -31,12 +42,13 @@ struct CourseCard: View {
                 }
                 if let folder = model.data.folder(for: course) { Button("Open course folder") { NSWorkspace.shared.open(folder) } }
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(course.tracks.indices, id: \.self) { ti in row(course, ti, recordings: byCube) }
             }
         }
-        .padding(10)
+        .padding(cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { cardWidth = $0 }
         .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
@@ -64,10 +76,11 @@ struct CourseCard: View {
         let t = course.tracks[ti]
         let links = links(course, t)
         let classPos = Pacing.classPosition(t, links: links, settings: model.data.settings, now: model.now)
-        let lines = stride(from: 0, to: t.count, by: perLine).map { $0..<min($0 + perLine, t.count) }
-        return HStack(alignment: .top, spacing: 6) {
-            Text(t.shortName).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                .frame(width: 28, height: cube, alignment: .leading)
+        let step = perLine(for: t.count)
+        let lines = stride(from: 0, to: t.count, by: step).map { $0..<min($0 + step, t.count) }
+        return HStack(alignment: .top, spacing: labelGap) {
+            Text(t.shortName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .frame(width: labelWidth, height: cube, alignment: .leading)
                 .help(t.name)
             VStack(alignment: .leading, spacing: gap) {
                 ForEach(lines, id: \.lowerBound) { line in
@@ -145,16 +158,16 @@ private struct Cube: View {
     @State private var hover = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
         let fill = Palette.cell(state)
         shape.fill(fill)
             .overlay(shape.fill(Color.primary.opacity(hover ? 0.16 : 0)))
-            .overlay(Text(verbatim: "\(number)").font(.system(size: 7, weight: .semibold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(state == .empty || state == .skipped ? Color.secondary.opacity(0.8) : .white.opacity(0.9))
+            .overlay(Text(verbatim: "\(number)").font(.system(size: 10, weight: .semibold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(state == .empty || state == .skipped ? Color.secondary.opacity(0.85) : .white.opacity(0.95))
                 .fixedSize())
             .overlay(shape.strokeBorder(stroke, lineWidth: 1.5))
             .frame(width: size, height: size)
-            .scaleEffect(hover ? 1.25 : 1)
+            .scaleEffect(hover ? 1.15 : 1)
             .animation(.easeOut(duration: 0.1), value: hover)
             .animation(.easeOut(duration: 0.15), value: fill)
             .contentShape(Rectangle())
