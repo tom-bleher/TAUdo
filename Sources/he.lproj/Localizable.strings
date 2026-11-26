@@ -259,3 +259,4 @@
 "Progress" = "התקדמות";
 "welcome.done" = "סיום";
 "Open TAUdo Window" = "פתיחת חלון TAUdo";
+"TAUdo couldn't open your saved data, so changes aren't saved until you restart it. The file is at %@." = "‏TAUdo לא הצליח לפתוח את הנתונים השמורים, ולכן שינויים לא יישמרו עד שתפעילו אותו מחדש. הקובץ נמצא ב־%@.";

@@ -33,6 +33,8 @@ final class AppModel {
     /// Alarms are stripped from the calendar once after calendar sync is turned off.
     private var calendarAlarmsCleared = false
     private let persist: Bool
+    /// Off when the saved file exists but couldn't be read or backed up: it's never overwritten.
+    private var saving = true
 
     static let fileURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("TAUdo", isDirectory: true)
@@ -42,23 +44,34 @@ final class AppModel {
 
     init(data: AppData? = nil, persist: Bool = true) {
         self.persist = persist
-        if let data { self.data = data }
-        else if let raw = try? Data(contentsOf: Self.fileURL) {
-            do {
-                self.data = try Self.decoder.decode(AppData.self, from: raw)
-                save()  // persist defaults filled in for new fields (e.g. the bookmark secret)
-            }
-            catch {
-                // Never silently replace your progress: keep the unreadable file next to the new one.
-                let stamp = ISO8601DateFormatter().string(from: .now).replacingOccurrences(of: ":", with: "-")
-                let backup = Self.fileURL.deletingLastPathComponent().appendingPathComponent("state.unreadable-\(stamp).json")
-                try? FileManager.default.copyItem(at: Self.fileURL, to: backup)
-                self.data = .initial
+        if let data { self.data = data; return }
+        let raw: Data
+        do { raw = try Data(contentsOf: Self.fileURL) }
+        catch CocoaError.fileReadNoSuchFile { self.data = .initial; save(); return }
+        catch {
+            // There, but not readable right now (permissions, disk): never replace it. Work in memory only.
+            self.data = .initial
+            saving = false
+            loadError = String(localized: "TAUdo couldn't open your saved data, so changes aren't saved until you restart it. The file is at \(Self.fileURL.path).")
+            return
+        }
+        do {
+            self.data = try Self.decoder.decode(AppData.self, from: raw)
+            save()  // persist defaults filled in for new fields (e.g. the bookmark secret)
+        }
+        catch {
+            // Never silently replace your progress: keep the unreadable file next to the new one.
+            let stamp = ISO8601DateFormatter().string(from: .now).replacingOccurrences(of: ":", with: "-")
+            let backup = Self.fileURL.deletingLastPathComponent().appendingPathComponent("state.unreadable-\(stamp).json")
+            self.data = .initial
+            if (try? FileManager.default.copyItem(at: Self.fileURL, to: backup)) != nil {
                 loadError = String(localized: "Your saved data couldn't be read, so TAUdo started fresh. The old file is kept at \(backup.path).")
                 save()
+            } else {
+                saving = false
+                loadError = String(localized: "TAUdo couldn't open your saved data, so changes aren't saved until you restart it. The file is at \(Self.fileURL.path).")
             }
         }
-        else { self.data = .initial; save() }
     }
 
     func start() {
@@ -97,7 +110,7 @@ final class AppModel {
     private static let decoder: JSONDecoder = { let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601; return d }()
 
     private func save() {
-        guard persist, let raw = try? Self.encoder.encode(data) else { return }
+        guard persist, saving, let raw = try? Self.encoder.encode(data) else { return }
         // The export link is a bearer token for your Moodle calendar: keep the file private.
         FileManager.default.createFile(atPath: Self.fileURL.path, contents: raw, attributes: [.posixPermissions: 0o600])
     }
