@@ -10,7 +10,6 @@ final class AppModel {
     static let log = Logger(subsystem: "io.github.tombleher.TAUdo", category: "sync")
     var data: AppData { didSet { save() } }
     var now = Date()
-    var syncing = false
     var feedError: String?
     var calendarStatus: String?
     /// Calendars TAUdo may write to (empty until calendar access is granted).
@@ -29,6 +28,7 @@ final class AppModel {
     private let calendar = CalendarSync()
     private var loop: Task<Void, Never>?
     private var pushTask: Task<Void, Never>?
+    private var syncTask: Task<Void, Never>?
     private var refreshAgain = false
     /// Alarms are stripped from the calendar once after calendar sync is turned off.
     private var calendarAlarmsCleared = false
@@ -100,11 +100,20 @@ final class AppModel {
 
     // MARK: Sync
 
+    var syncing: Bool { syncTask != nil }
+
+    /// Syncs Moodle, exams and course files. Returns once the data reflects everything changed before the call:
+    /// a refresh requested mid-sync (e.g. a new export link) runs the sync once more and waits for that.
     func refresh() async {
         guard persist else { return }
-        // A refresh requested mid-sync (e.g. a new export link) runs right after the current one.
-        guard !syncing else { refreshAgain = true; return }
-        syncing = true; defer { syncing = false }
+        if let running = syncTask { refreshAgain = true; await running.value; return }
+        let task = Task { await sync() }
+        syncTask = task
+        await task.value
+    }
+
+    private func sync() async {
+        defer { syncTask = nil }
         repeat {
             refreshAgain = false
             let url = data.settings.exportURL
@@ -191,6 +200,7 @@ final class AppModel {
                 return
             }
             self?.setExportLink(link)
+            await self?.refresh()
         }
     }
 
@@ -198,7 +208,6 @@ final class AppModel {
         connectTask?.cancel()
         data.settings.exportURL = link
         connectStatus = nil
-        Task { await refresh() }
     }
 
     /// taudo://sync from the bookmarklet.
@@ -213,7 +222,6 @@ final class AppModel {
         data.settings.moodleBaseURL = p.base
         data.moodleCourseNames.merge(p.courses ?? [:]) { _, new in new }
         data.autoLinkCourses(files: files)
-        data.applySubmissions(p.submittedIDs(feed: data.events))
         data.lastStatusCheck = .now
         if let t = p.took { Self.log.notice("bookmark sync took \(t.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value) ms" }.joined(separator: ", "), privacy: .public)") }
         // Replace per course: a course whose block didn't answer this time keeps its last list.
@@ -228,7 +236,13 @@ final class AppModel {
             watchDownloads()
         }
         if let s = p.exportURL, let link = MoodleConnect.exportLink(s, host: moodleHost) { setExportLink(link) }
-        else { push() }
+        // Moodle's to-do list only says what's still open: what's submitted is the feed's assignments minus it.
+        // Fetch the feed first, so a first sync (or one with a new link) has the deadlines to compare.
+        Task {
+            await refresh()
+            data.applySubmissions(p.submittedIDs(feed: data.events))
+            push()
+        }
     }
 
     // MARK: Course downloads
