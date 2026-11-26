@@ -36,7 +36,8 @@ struct PanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     notices
-                    if adding { AddDeadline { adding = false } }
+                    // Show the tab the new item lands on, so it doesn't seem to vanish.
+                    if adding { AddDeadline { isExam in adding = false; if let isExam { tab = isExam ? .exams : .due } } }
                     switch tab {
                     case .due: DeadlineList()
                     case .exams: ExamList()
@@ -437,7 +438,8 @@ struct CubeLegend: View {
 /// A card for adding an exam or deadline of your own without leaving the panel.
 struct AddDeadline: View {
     @Environment(AppModel.self) private var model
-    var onClose: () -> Void
+    /// Called with whether the added item is an exam, or nil when cancelled.
+    var onClose: (_ addedExam: Bool?) -> Void
     @State private var title = ""
     @State private var due = ManualDeadline.suggestedDue()
     @State private var courseID: UUID?
@@ -455,7 +457,7 @@ struct AddDeadline: View {
                 .labelsHidden().frame(maxWidth: 190)
                 DatePicker("Due", selection: $due).labelsHidden().fixedSize()
                 Spacer(minLength: 0)
-                Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("Cancel") { onClose(nil) }.keyboardShortcut(.cancelAction)
                 Button("Add", action: add).buttonStyle(.borderedProminent).disabled(trimmed.isEmpty)
             }
             .controlSize(.small)
@@ -470,6 +472,6 @@ struct AddDeadline: View {
     private func add() {
         guard !trimmed.isEmpty else { return }
         model.addDeadline(title: trimmed, due: due, courseID: courseID)
-        onClose()
+        onClose(Classifier.isExam(trimmed))
     }
 }
