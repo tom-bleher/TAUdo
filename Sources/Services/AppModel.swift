@@ -296,7 +296,7 @@ final class AppModel {
     func folder(for m: DownloadManifest) -> URL {
         let course = data.course(matching: m.name).map { data.courses[$0] }
         if let course, let f = data.folder(for: course) { return f }
-        let name = DownloadOrganizer.safe(course?.name ?? AppData.readableName(m.name))
+        let name = DownloadOrganizer.name(course?.name ?? AppData.readableName(m.name), or: "Course \(m.courseID)")
         let root = data.settings.courseworkFolder.isEmpty
             ? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0].appendingPathComponent("TAUdo")
             : URL(fileURLWithPath: (data.settings.courseworkFolder as NSString).expandingTildeInPath)

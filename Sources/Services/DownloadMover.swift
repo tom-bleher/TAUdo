@@ -20,7 +20,7 @@ enum DownloadMover {
                 if item.name.lowercased().hasSuffix(".zip") {
                     // Folder downloads and Moodle's course export arrive as zips: unpack beside, never over, your files.
                     let target = item.section == "all" ? dir
-                        : dir.appendingPathComponent(DownloadOrganizer.safe(String(item.name.dropLast(4))), isDirectory: true)
+                        : dir.appendingPathComponent(DownloadOrganizer.name(String(item.name.dropLast(4)), or: "folder"), isDirectory: true)
                     let staging = fm.temporaryDirectory.appendingPathComponent("TAUdo-unzip-\(UUID().uuidString)")
                     defer { try? fm.removeItem(at: staging) }
                     let p = Process()
@@ -31,7 +31,7 @@ enum DownloadMover {
                     try merge(staging, into: target)
                     try fm.removeItem(at: src)
                 } else {
-                    try place(src, at: dir.appendingPathComponent(DownloadOrganizer.safe(item.name)))
+                    try place(src, at: dir.appendingPathComponent(DownloadOrganizer.name(item.name, or: "file")))
                 }
                 moved[item.courseID, default: 0] += 1
             } catch {

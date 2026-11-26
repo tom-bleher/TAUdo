@@ -533,6 +533,12 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: downloads.appendingPathComponent("TAUdo__7__1__slides.pdf").path), "in-progress download left alone")
     }
 
+    func testNamesNeverComeOutEmpty() {
+        XCTAssertEqual(DownloadOrganizer.name("..", or: "file"), "file")
+        XCTAssertEqual(DownloadOrganizer.name("a/b:c", or: "file"), "a-b-c")
+        XCTAssertEqual(DownloadOrganizer.safe(""), "", "section titles may be empty")
+    }
+
     /// Downloading the course again doesn't pile up copies of a file you changed.
     func testRepeatedRedownloadAddsOneCopy() throws {
         let fm = FileManager.default
