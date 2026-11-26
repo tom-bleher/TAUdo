@@ -662,6 +662,11 @@ final class RecordingTests: XCTestCase {
         XCTAssertEqual(Recordings.kind("07 - מכניקה אנליטית - תרגול 07"), .recitation)
         XCTAssertEqual(Recordings.kind("Tutorial 2"), .recitation)
         XCTAssertEqual(Recordings.kind("הרצאה 5"), .lecture)
+        XCTAssertNil(Recordings.number("05.03.2024 הרצאה"), "a leading date isn't a session number")
+        XCTAssertNil(Recordings.number("12/03 Lecture"))
+        XCTAssertNil(Recordings.number("שיעור 5.3"))
+        XCTAssertEqual(Recordings.kind("הרצאה 5 - פתרון תרגול"), .lecture, "the row comes from the word by the number")
+        XCTAssertEqual(Recordings.number("הרצאה 5 - פתרון תרגול"), 5)
     }
 
     func testByCubeAndOrder() {

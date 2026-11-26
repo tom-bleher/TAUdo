@@ -13,20 +13,24 @@ enum Recordings {
     }
 
     private static let recitation = try! NSRegularExpression(pattern: #"תרגול|recitation|tutorial"#, options: .caseInsensitive)
-    /// The number after a word for a class session ("הרצאה 5", "תרגול 07", "Lecture 12").
+    /// A word for a class session and its number ("הרצאה 5", "תרגול 07", "Lecture 12"), not a date ("שיעור 5.3").
     private static let keyed = try! NSRegularExpression(
-        pattern: #"(?:הרצאה|שיעור|תרגול|lecture|lesson|class|recitation|tutorial)\s*(?:מס['׳"]?\s*|#\s*)?(\d{1,2})(?!\d)"#, options: .caseInsensitive)
-    /// A number leading the name ("07 - Course - …").
-    private static let leading = try! NSRegularExpression(pattern: #"^\s*(\d{1,2})(?!\d)"#)
+        pattern: #"(הרצאה|שיעור|תרגול|lecture|lesson|class|recitation|tutorial)\s*(?:מס['׳"]?\s*|#\s*)?(\d{1,2})(?!\d)(?![./]\d)"#,
+        options: .caseInsensitive)
+    /// A number leading the name ("07 - Course - …"), not a date ("05.03.2024 הרצאה", "12/03 Lecture").
+    private static let leading = try! NSRegularExpression(pattern: #"^\s*(\d{1,2})(?!\d)(?![./-]\d)"#)
 
+    /// Lecture or recitation: from the word the session number belongs to, else from anywhere in the name.
+    /// ("הרצאה 5 - פתרון תרגול" is lecture 5.)
     static func kind(_ name: String) -> TrackKind {
-        matches(recitation, name) == nil ? .lecture : .recitation
+        let word = matches(keyed, name).flatMap { Range($0.range(at: 1), in: name) }.map { String(name[$0]) }
+        return matches(recitation, word ?? name) == nil ? .lecture : .recitation
     }
 
     /// The session number in a recording's name, or nil (dates and course numbers don't count).
     static func number(_ name: String) -> Int? {
-        for r in [keyed, leading] {
-            if let m = matches(r, name), let g = Range(m.range(at: 1), in: name), let n = Int(name[g]), n > 0 { return n }
+        for (r, group) in [(keyed, 2), (leading, 1)] {
+            if let m = matches(r, name), let g = Range(m.range(at: group), in: name), let n = Int(name[g]), n > 0 { return n }
         }
         return nil
     }
