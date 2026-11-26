@@ -32,11 +32,10 @@ struct SettingsView: View {
         .frame(width: Self.width)
         // Reminders and the calendar follow the settings: one debounced push covers every control.
         .onChange(of: model.data.settings) { model.push() }
-        // A new semester: keep its end after its start (a TAU semester is 13 weeks), and fetch its exam catalog.
-        .onChange(of: model.data.settings.semesterStart) {
-            let s = model.data.settings
-            if s.semesterEnd < s.semesterStart { model.data.settings.semesterEnd = s.semesterStart.addingTimeInterval(13 * 7 * 86400) }
-            model.refetchExams()
+        // A new start: keep the end in step, and fetch the exams when it's another semester's catalog.
+        .onChange(of: model.data.settings.semesterStart) { old, new in
+            model.data.settings.fitSemesterEnd()
+            if Arazim.catalogURL(semesterStart: old) != Arazim.catalogURL(semesterStart: new) { model.refetchExams() }
         }
     }
 }

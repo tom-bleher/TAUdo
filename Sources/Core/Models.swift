@@ -188,6 +188,15 @@ struct Settings: Codable, Hashable, Sendable {
         return cal.date(from: DateComponents(year: y, month: m, day: d))!
     }
 
+    /// After the semester's start moves: keep the end within one semester of it (after it, at most 20 weeks on),
+    /// else guess a 13-week TAU semester. So moving the start to another semester moves the end along.
+    mutating func fitSemesterEnd(maxWeeks: Int = 20) {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = ICS.defaultTimeZone
+        let start = semesterStart
+        let weeks = { (n: Int) in cal.date(byAdding: .weekOfYear, value: n, to: start)! }
+        if semesterEnd <= semesterStart || semesterEnd > weeks(maxWeeks) { semesterEnd = weeks(13) }
+    }
+
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
         let z = Settings()
@@ -195,6 +204,8 @@ struct Settings: Codable, Hashable, Sendable {
         moodleBaseURL = try c.decodeIfPresent(String.self, forKey: .moodleBaseURL) ?? z.moodleBaseURL
         semesterStart = try c.decodeIfPresent(Date.self, forKey: .semesterStart) ?? z.semesterStart
         semesterEnd = try c.decodeIfPresent(Date.self, forKey: .semesterEnd) ?? z.semesterEnd
+        // An end before the start (moved before this was kept in step) would put every class marker at 0.
+        if semesterEnd <= semesterStart { fitSemesterEnd() }
         refreshMinutes = try c.decodeIfPresent(Int.self, forKey: .refreshMinutes) ?? z.refreshMinutes
         calendarSync = try c.decodeIfPresent(Bool.self, forKey: .calendarSync) ?? z.calendarSync
         calendarName = try c.decodeIfPresent(String.self, forKey: .calendarName) ?? z.calendarName

@@ -137,6 +137,23 @@ final class ProgressTests: XCTestCase {
 }
 
 final class PersistenceTests: XCTestCase {
+    /// The semester's end follows its start into another semester, and is 13 weeks on even across daylight saving.
+    func testSemesterEndFollowsStart() throws {
+        var s = Settings()
+        s.semesterStart = Settings.day(2026, 10, 18); s.semesterEnd = Settings.day(2027, 1, 17)
+        s.fitSemesterEnd()
+        XCTAssertEqual(s.semesterEnd, Settings.day(2027, 1, 17), "within the semester: kept")
+        s.semesterStart = Settings.day(2027, 3, 14)
+        s.fitSemesterEnd()
+        XCTAssertEqual(s.semesterEnd, Settings.day(2027, 6, 13), "start moved past the end")
+        s.semesterStart = Settings.day(2026, 10, 18)
+        s.fitSemesterEnd()
+        XCTAssertEqual(s.semesterEnd, Settings.day(2027, 1, 17), "start moved far back")
+        let raw = #"{"semesterStart":"2027-03-13T22:00:00Z","semesterEnd":"2027-01-16T22:00:00Z"}"#
+        let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
+        XCTAssertEqual(try dec.decode(Settings.self, from: Data(raw.utf8)).semesterEnd, Settings.day(2027, 6, 13), "saved end before start")
+    }
+
     func testDecodesOldOrPartialState() throws {
         let raw = #"{"courses":[{"name":"X","tracks":[{"name":"Lecture","cells":["done"]}]}],"settings":{"exportURL":"u"}}"#
         let d = try JSONDecoder().decode(AppData.self, from: Data(raw.utf8))
