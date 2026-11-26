@@ -10,21 +10,16 @@ enum MoodleConnect {
         var key: String?
         var base: String
         var exportURL: String?
-        /// Moodle event IDs of assignment deadlines in the queried window (bookmarks before version 3; newer ones
-        /// leave this to TAUdo, which has the deadlines from the calendar feed).
-        var assignIDs: [Int]?
-        /// Moodle event IDs on Moodle's to-do list (not submitted), as of the click. nil if the list couldn't be read.
-        var pendingIDs: [Int]?
-        /// The window the to-do list covers (Unix time); `pendingUntil` is nil when the list wasn't cut off.
-        var pendingFrom: Int?
-        var pendingUntil: Int?
+        /// Moodle event IDs of assignment deadlines whose page says "submitted" (bookmark version 4 and up).
+        /// nil if they couldn't be checked: then nothing counts as submitted.
+        var submitted: [Int]?
         /// Course shortname → full name, from Moodle's calendar.
         var courses: [String: String]?
         /// Set when the bookmark was clicked on a course page and you chose to download its files.
         var download: Download?
         /// Course shortname → its Panopto recordings as [name, viewer URL]. Only courses whose Panopto block answered.
         var recordings: [String: [[String]]]?
-        /// Bookmark version: 2 and up send recordings. nil from bookmarks installed before that.
+        /// Bookmark version: 2 and up send recordings, 4 and up confirmed submissions. nil before version 2.
         var v: Int?
         /// Milliseconds after the click when each part of the sync finished (link, submissions, panopto, download).
         var took: [String: Int]?
@@ -34,17 +29,6 @@ enum MoodleConnect {
             var name: String
             var sections: [String: String]?
             var count: Int
-        }
-
-        /// Assignments Moodle no longer lists as to do: submitted. `feed` supplies the assignment deadlines when the
-        /// bookmark didn't send them. Without a readable to-do list nothing counts as submitted.
-        func submittedIDs(feed: [MoodleEvent]) -> Set<Int> {
-            guard let pendingIDs else { return [] }
-            if let assignIDs { return Set(assignIDs).subtracting(pendingIDs) }
-            guard let from = pendingFrom.map({ Date(timeIntervalSince1970: TimeInterval($0)) }) else { return [] }
-            let until = pendingUntil.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? .distantFuture
-            let assignments = feed.filter { Classifier.isAssignmentDue($0.summary) && $0.start >= from && $0.start <= until }
-            return Set(assignments.compactMap(\.moodleEventID)).subtracting(pendingIDs)
         }
 
         /// The recordings that are Panopto viewer links, by course.
@@ -73,7 +57,7 @@ enum MoodleConnect {
               let d = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "d" })?.value
         else { return nil }
         guard d.utf8.count < 200_000, var p = try? JSONDecoder().decode(Payload.self, from: Data(d.utf8)) else { return nil }
-        p.assignIDs = p.assignIDs.map { Array($0.prefix(2000)) }; p.pendingIDs = p.pendingIDs.map { Array($0.prefix(2000)) }
+        p.submitted = p.submitted.map { Array($0.prefix(2000)) }
         return p
     }
 
@@ -200,17 +184,44 @@ enum MoodleConnect {
           await Promise.race([Promise.all(todo.map(panoptoCourse)), new Promise(ok => setTimeout(ok, 10000))]);
         } catch (e) {}
       };
-      // Moodle's to-do list: assignments still on it aren't submitted. TAUdo compares it with the deadlines it has
-      // from the calendar feed (the to-do list query is one of the few that doesn't hold the session lock).
-      let pendingIDs = null, pendingUntil = null;
-      const todoList = async () => {
+      // Which assignments are submitted. An assignment leaves Moodle's to-do list once it's submitted, but also once its
+      // completion condition is met (e.g. "view"), so each one that left the list is confirmed on its own page.
+      // The to-do list query is one of the few that doesn't hold the session lock. Nothing confirmed: null.
+      let submitted = null;
+      const submissions = async () => {
         try {
           const LIMIT = 50;
           const [pending] = await ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]);
-          if (!pending || pending.error || !pending.data) return;   // no trustworthy to-do list: infer nothing
+          if (!pending || pending.error || !pending.data) return;
           const evs = pending.data.events || [];
-          pendingIDs = evs.map(e => e.id);
-          if (evs.length >= LIMIT) pendingUntil = Math.max(...evs.map(e => e.timesort || e.timestart));
+          const pendingIDs = new Set(evs.map(e => e.id));
+          // A cut-off list may have dropped some of the deadlines due at its last moment: check only before it.
+          const until = evs.length >= LIMIT ? Math.max(...evs.map(e => e.timesort || e.timestart)) : Infinity;
+          // Assignments due from two weeks ago (earlier ones were checked on earlier clicks) to two months ahead.
+          const since = Date.now() / 1000 - 14 * 86400;
+          const months = [], d = new Date(since * 1000), end = new Date(Date.now() + 60 * 86400000);
+          d.setDate(1);
+          while (d <= end) { months.push([d.getFullYear(), d.getMonth() + 1]); d.setMonth(d.getMonth() + 1); }
+          const check = new Map();
+          for (const v of await ajax(months.map(([y, m]) => ["core_calendar_get_calendar_monthly_view", {year: y, month: m, courseid: 1, day: 1}]))) {
+            if (!v || v.error) return;
+            for (const w of v.data.weeks || []) for (const day of w.days || []) for (const e of day.events || []) {
+              if (e.modulename === "assign" && e.eventtype === "due" && e.url && e.timestart >= since && e.timestart < until
+                  && !pendingIDs.has(e.id)) check.set(e.id, e.url);
+            }
+          }
+          const found = [], todo = [...check];
+          const worker = async () => {
+            while (todo.length) {
+              const [id, url] = todo.pop();
+              try {
+                const html = await (await fetch(url, {credentials: "include"})).text();
+                if (/\bsubmissionstatussubmitted\b/.test(html)) found.push(id);
+              } catch (e) {}
+            }
+          };
+          await Promise.all([worker(), worker(), worker()]);
+          submitted = found;
         } catch (e) {}
       };
       // The calendar link. Moodle's export form needs only the session key and its form marker, so post it directly;
@@ -236,7 +247,7 @@ enum MoodleConnect {
           return await post(fields);
         } catch (e) { return null; }
       };
-      const [, , exportURL] = await Promise.all([timed("panopto", panopto()), timed("todo", todoList()), timed("link", exportLink())]);
+      const [, , exportURL] = await Promise.all([timed("panopto", panopto()), timed("submissions", submissions()), timed("link", exportLink())]);
       let download = null;
       if (wantDownload) {
         const save = (blob, name) => {
@@ -313,7 +324,7 @@ enum MoodleConnect {
         took.download = Math.round(performance.now() - t0);
       }
       ui.done(download ? __SENT__.replace("{n}", download.count) : __DONE__);
-      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 3, key: "__KEY__", base, exportURL, pendingIDs, pendingFrom: from, pendingUntil, courses, download, recordings, took}));
+      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 4, key: "__KEY__", base, exportURL, submitted, courses, download, recordings, took}));
     })();
     """#
 

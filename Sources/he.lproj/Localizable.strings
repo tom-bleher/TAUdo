@@ -245,7 +245,7 @@
 "Watch “%@” in Panopto" = "צפייה ב״%@״ ב־Panopto";
 "⌘-click: watch in Panopto" = "⌘-לחיצה: צפייה ב־Panopto";
 "Update your TAUdo bookmark" = "כדאי לעדכן את סימניית TAUdo";
-"The new bookmark also finds each course's Panopto recordings. Install it again from Settings › Moodle." = "הסימנייה החדשה מוצאת גם את ההקלטות של כל קורס ב־Panopto. התקינו אותה מחדש בהגדרות › Moodle.";
+"The new bookmark tells which assignments you've submitted more reliably and finds each course's Panopto recordings. Install it again from Settings › Moodle." = "הסימנייה החדשה מזהה בצורה אמינה יותר אילו מטלות הגשתם, ומוצאת את ההקלטות של כל קורס ב־Panopto. התקינו אותה מחדש בהגדרות › Moodle.";
 
 /* Sync bookmark badge */
 "Gathering from Moodle…" = "אוסף נתונים מ־Moodle…";

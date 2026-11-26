@@ -51,7 +51,7 @@ A macOS menu bar companion for Tel Aviv University students. It shows your Moodl
 | What | How | Needs |
 |---|---|---|
 | Deadlines | Moodle's iCal export (`calendar/export_execute.php`), fetched hourly, on wake, and when you open the panel | Only the link |
-| Submitted assignments | The bookmark compares assignment due events with Moodle's to-do list (`core_calendar_get_action_events_by_timesort`). An assignment no longer on the list counts as submitted | A click on the bookmark while logged in |
+| Submitted assignments | Assignments due from two weeks ago on that are no longer on Moodle's to-do list (`core_calendar_get_action_events_by_timesort`) are checked on their own page: only `Submitted for grading` counts | A click on the bookmark while logged in |
 | Lecture recordings | Each enrolled course's Panopto block (`block_panopto_get_content`), asked for its recordings. Cubes open them in Panopto by session number (`הרצאה 5`, `תרגול 07`, `07 - …`); the rest are listed on the course | A click on the bookmark while logged in |
 | Course files | Moodle's *Download course content* zip if the course allows it. Otherwise `core_courseformat_get_state`, which gives files as `mod/resource/view.php?redirect=1` and folders as `download_folder.php` zips, plus files linked in section text | A click on the bookmark on the course page |
 
@@ -59,7 +59,7 @@ Some details:
 - Homework deadlines are matched to cubes by course and number (`תרגיל בית 3`, `הגשת שיעורי בית 3`, `HW 3`, `Problem Set 3`, …).
 - Moodle courses are linked to your courses by name, or by the TAU course code if it appears in the course's files.
 - Moodle's export only looks back a few days, so TAUdo keeps this semester's past events.
-- Moodle's to-do list also drops activities you marked complete by hand. Untick a deadline to override; TAUdo never re-applies the same report.
+- An assignment also leaves the to-do list when its completion condition (e.g. viewing it) is met, hence the check on its page. Untick a deadline to override; TAUdo never re-applies the same report.
 - TAU Moodle opens in guest mode, and guests get a session too. The bookmark only runs on pages with a logout link, and TAUdo ignores guest export links (`userid=1`).
 
 ## License

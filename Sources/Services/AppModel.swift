@@ -226,9 +226,9 @@ final class AppModel {
         if let t = p.took { Self.log.notice("bookmark sync took \(t.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value) ms" }.joined(separator: ", "), privacy: .public)") }
         // Replace per course: a course whose block didn't answer this time keeps its last list.
         data.recordings.merge(p.validRecordings.filter { !$0.value.isEmpty }) { _, new in new }
-        if (p.v ?? 1) < 2 {
+        if (p.v ?? 1) < 4 {
             Notifier.post(String(localized: "Update your TAUdo bookmark"),
-                          String(localized: "The new bookmark also finds each course's Panopto recordings. Install it again from Settings › Moodle."), id: "bookmark.old")
+                          String(localized: "The new bookmark tells which assignments you've submitted more reliably and finds each course's Panopto recordings. Install it again from Settings › Moodle."), id: "bookmark.old")
         }
         if let dl = p.download, dl.count > 0 {
             data.downloads.removeAll { $0.courseID == dl.courseID }
@@ -236,11 +236,11 @@ final class AppModel {
             watchDownloads()
         }
         if let s = p.exportURL, let link = MoodleConnect.exportLink(s, host: moodleHost) { setExportLink(link) }
-        // Moodle's to-do list only says what's still open: what's submitted is the feed's assignments minus it.
-        // Fetch the feed first, so a first sync (or one with a new link) has the deadlines to compare.
+        // Submissions apply to the deadlines TAUdo has: fetch the feed first, so a first sync (or one with a new link)
+        // has them.
         Task {
             await refresh()
-            data.applySubmissions(p.submittedIDs(feed: data.events))
+            data.applySubmissions(Set(p.submitted ?? []))
             push()
         }
     }
