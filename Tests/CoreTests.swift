@@ -267,6 +267,9 @@ final class ReviewFixTests: XCTestCase {
     func testClassifierEdgeCases() {
         XCTAssertFalse(Classifier.isExam("מועד אחרון להגשת תרגיל 3"))
         XCTAssertTrue(Classifier.isExam("מבחן מועד א'"))
+        XCTAssertFalse(Classifier.isExam("יש להגיש את 'תרגיל 3 מועד ב'"), "an assignment, though it names a sitting")
+        XCTAssertFalse(Classifier.isExam("Practice exam is due"))
+        XCTAssertTrue(Classifier.isProblemSet(summary: "Practice exam is due"))
         XCTAssertTrue(Classifier.isExam("Midterm"))
         XCTAssertFalse(Classifier.isExam("HW 5 final version"))
         XCTAssertFalse(Classifier.isProblemSet(summary: "Quiz 3 opens"))

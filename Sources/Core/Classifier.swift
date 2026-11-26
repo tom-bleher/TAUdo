@@ -31,7 +31,8 @@ enum Classifier {
         r.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil
     }
 
-    static func isExam(_ summary: String) -> Bool { exam.contains { matches($0, summary) } }
+    /// An assignment's due date is never an exam, even if its title names one ("תרגיל 3 מועד ב", "Practice exam").
+    static func isExam(_ summary: String) -> Bool { !isAssignmentDue(summary) && exam.contains { matches($0, summary) } }
 
     /// Moodle's title for an assignment's due date: "יש להגיש את '…'" in Hebrew, "… is due" in English.
     /// (Quizzes close with "תאריך הגשה …" / "… closes"; those aren't assignments.)
