@@ -51,7 +51,16 @@ notarize() {  # file to submit, file to staple
   xcrun stapler staple "$2"
 }
 if [[ -n "${SIGN_ID:-}" ]]; then
-  codesign --force --deep --options runtime --timestamp --sign "$SIGN_ID" $app
+  # Inside out, as Sparkle documents (sparkle-project.org/documentation/sandboxing), then the app with its
+  # entitlements (calendar access, which the hardened runtime otherwise refuses).
+  sign() { codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$@" }
+  sparkle=$app/Contents/Frameworks/Sparkle.framework
+  sign $sparkle/Versions/B/XPCServices/Installer.xpc
+  sign --preserve-metadata=entitlements $sparkle/Versions/B/XPCServices/Downloader.xpc
+  sign $sparkle/Versions/B/Autoupdate
+  sign $sparkle/Versions/B/Updater.app
+  sign $sparkle
+  sign --entitlements TAUdo.entitlements $app
   zip=$work/TAUdo.zip
   ditto -c -k --keepParent $app "$zip"
   notarize "$zip" $app

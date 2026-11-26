@@ -49,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.tombleher.TAUdo
         ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_ENTITLEMENTS: TAUdo.entitlements
   TAUdoTests:
     type: bundle.unit-test
     platform: macOS
