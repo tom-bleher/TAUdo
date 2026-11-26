@@ -32,6 +32,12 @@ struct SettingsView: View {
         .frame(width: Self.width)
         // Reminders and the calendar follow the settings: one debounced push covers every control.
         .onChange(of: model.data.settings) { model.push() }
+        // A new semester: keep its end after its start (a TAU semester is 13 weeks), and fetch its exam catalog.
+        .onChange(of: model.data.settings.semesterStart) {
+            let s = model.data.settings
+            if s.semesterEnd < s.semesterStart { model.data.settings.semesterEnd = s.semesterStart.addingTimeInterval(13 * 7 * 86400) }
+            model.refetchExams()
+        }
     }
 }
 
@@ -66,7 +72,8 @@ struct GeneralSettings: View {
             Row("Semester") {
                 HStack(spacing: 8) {
                     DatePicker("Starts", selection: $m.data.settings.semesterStart, displayedComponents: .date)
-                    DatePicker("Ends", selection: $m.data.settings.semesterEnd, displayedComponents: .date).padding(.leading, 10)
+                    DatePicker("Ends", selection: $m.data.settings.semesterEnd, in: m.data.settings.semesterStart..., displayedComponents: .date)
+                        .padding(.leading, 10)
                 }
                 .fixedSize()
                 Note("These dates set where the class marker is in each course.")
@@ -594,6 +601,6 @@ struct ExamsSettings: View {
         }
         .onChange(of: model.data.manual) { model.push() }
         // Turned on: fetch the dates now instead of at the next hourly refresh.
-        .onChange(of: model.data.settings.fetchExams) { if model.data.settings.fetchExams { Task { await model.refresh() } } }
+        .onChange(of: model.data.settings.fetchExams) { if model.data.settings.fetchExams { model.refetchExams() } }
     }
 }

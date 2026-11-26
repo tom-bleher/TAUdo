@@ -151,6 +151,12 @@ final class AppModel {
         } catch {}
     }
 
+    /// Fetches exam dates now rather than within a day (turned on, or a new semester).
+    func refetchExams() {
+        data.examsFetched = nil
+        Task { await refresh() }
+    }
+
     /// Indexes course folders off the main thread.
     func scanFiles() async {
         let folders = data.courses.compactMap { c in data.folder(for: c).map { (c.id, $0) } }
