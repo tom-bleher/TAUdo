@@ -530,6 +530,21 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: downloads.appendingPathComponent("TAUdo__7__1__slides.pdf").path), "in-progress download left alone")
     }
 
+    /// Downloading the course again doesn't pile up copies of a file you changed.
+    func testRepeatedRedownloadAddsOneCopy() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: dir) }
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("annotated".utf8).write(to: dir.appendingPathComponent("slides.pdf"))
+        for i in 0..<3 {
+            let src = dir.appendingPathComponent("download-\(i)")
+            try Data("original".utf8).write(to: src)
+            try DownloadMover.place(src, at: dir.appendingPathComponent("slides.pdf"))
+        }
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path).sorted(), ["slides 2.pdf", "slides.pdf"])
+    }
+
     func testCourseMatchingKeepsNumbers() {
         var d = AppData(courses: [.standard("פיזיקה 1"), .standard("פיזיקה 2")])
         XCTAssertEqual(d.course(matching: "0321111101 - פיזיקה 2"), 1)

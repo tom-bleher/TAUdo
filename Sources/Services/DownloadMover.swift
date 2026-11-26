@@ -70,16 +70,16 @@ enum DownloadMover {
         }
     }
 
-    /// Moves `src` to `dest`. If an identical file is already there it's a re-download: keep yours, drop the new one.
-    /// If a different file is there (an updated version, even of the same size), the new one becomes "name 2.ext".
+    /// Moves `src` to `dest`. A different file already there (an updated version, or one you changed) stays, and the
+    /// new one becomes "name 2.ext", "name 3.ext", …. If the file or one of those copies is identical, it's a
+    /// re-download: keep what's there, drop the new one.
     static func place(_ src: URL, at dest: URL) throws {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: dest.path) else { try fm.moveItem(at: src, to: dest); return }
-        if fm.contentsEqual(atPath: src.path, andPath: dest.path) { try fm.removeItem(at: src); return }
         let base = dest.deletingPathExtension().lastPathComponent, ext = dest.pathExtension
-        for n in 2... {
-            let candidate = dest.deletingLastPathComponent().appendingPathComponent("\(base) \(n)" + (ext.isEmpty ? "" : ".\(ext)"))
-            if !fm.fileExists(atPath: candidate.path) { try fm.moveItem(at: src, to: candidate); return }
+        for n in 1... {
+            let candidate = n == 1 ? dest : dest.deletingLastPathComponent().appendingPathComponent("\(base) \(n)" + (ext.isEmpty ? "" : ".\(ext)"))
+            guard fm.fileExists(atPath: candidate.path) else { try fm.moveItem(at: src, to: candidate); return }
+            if fm.contentsEqual(atPath: src.path, andPath: candidate.path) { try fm.removeItem(at: src); return }
         }
     }
 }
