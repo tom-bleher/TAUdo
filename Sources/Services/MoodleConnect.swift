@@ -345,7 +345,11 @@ enum MoodleConnect {
         took.download = Math.round(performance.now() - t0);
       }
       ui.done(download ? __SENT__.replace("{n}", download.count) : __DONE__);
-      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify({v: 4, key: "__KEY__", base, exportURL, submitted, links, courses, download, recordings, took}));
+      const payload = {v: 4, key: "__KEY__", base, exportURL, submitted, links, courses, download, recordings, took};
+      // TAUdo takes up to 200 kB: past that, leave out the longest recording lists (TAUdo keeps each course's last one).
+      const big = Object.keys(recordings).sort((a, b) => recordings[b].length - recordings[a].length);
+      while (big.length && new Blob([JSON.stringify(payload)]).size > 190000) delete recordings[big.shift()];
+      location.href = "taudo://sync?d=" + encodeURIComponent(JSON.stringify(payload));
     })();
     """#
 
