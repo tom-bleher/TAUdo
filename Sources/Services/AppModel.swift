@@ -303,13 +303,19 @@ final class AppModel {
         return root.appendingPathComponent(name, isDirectory: true)
     }
 
+    /// Set while files are being filed: the download watcher and the sync both ask, and two runs at once would
+    /// race on the same files.
+    private var organizing = false
+
     func organizeDownloads() async {
-        guard !data.downloads.isEmpty else { return }
+        guard !data.downloads.isEmpty, !organizing else { return }
+        organizing = true; defer { organizing = false }
         let jobs = data.downloads.map { ($0, folder(for: $0)) }
         let moved = await Task.detached(priority: .utility) { DownloadMover.run(jobs) }.value
         for (m, folder) in jobs {
             let n = moved[m.courseID] ?? 0
-            guard n > 0, let i = data.downloads.firstIndex(where: { $0.courseID == m.courseID }) else { continue }
+            // The same download, not a newer one of the course started meanwhile (its count starts afresh).
+            guard n > 0, let i = data.downloads.firstIndex(where: { $0.courseID == m.courseID && $0.started == m.started }) else { continue }
             data.downloads[i].filed += n
             let total = data.downloads[i].filed
             // One notification per course download, updated as files arrive.
