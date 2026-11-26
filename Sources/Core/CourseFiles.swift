@@ -65,7 +65,8 @@ extension AppData {
     mutating func autoLinkCourses(files: [UUID: CourseFiles]) {
         let digits = { (s: String) in s.filter(\.isNumber) }
         let words = AppData.nameWords
-        let keys = Set(events.compactMap(\.courseKey)).subtracting(courses.compactMap(\.moodleKey))
+        // Not the courses you said aren't yours: another group's copy would grab your course by name.
+        let keys = Set(moodleCourseKeys).subtracting(courses.compactMap(\.moodleKey))
         for key in keys.sorted() {
             let free = courses.indices.filter { courses[$0].moodleKey == nil }
             let byCode = free.filter { i in

@@ -525,6 +525,17 @@ final class DownloadSafetyTests: XCTestCase {
         XCTAssertEqual(group(2), .today, "due at midnight: the end of today, as in the calendar")
     }
 
+    func testAutoLinkSkipsIgnoredCourses() {
+        var d = AppData(courses: [Course.standard("Linear Algebra")])
+        d.events = [MoodleEvent(uid: "1", summary: "HW 1", categories: ["0366111101 - Linear Algebra 1a"], start: .now, end: .now)]
+        d.ignoredCourseKeys = ["0366111101 - Linear Algebra 1a"]
+        d.autoLinkCourses(files: [:])
+        XCTAssertNil(d.courses[0].moodleKey)
+        d.ignoredCourseKeys = []
+        d.autoLinkCourses(files: [:])
+        XCTAssertEqual(d.courses[0].moodleKey, "0366111101 - Linear Algebra 1a")
+    }
+
     /// A deadline at midnight is in the digest of the day it ends, not the day after.
     func testDigestMidnight() {
         var cal = Calendar(identifier: .gregorian)
