@@ -65,12 +65,15 @@ extension Date {
     /// the weekday within a week, otherwise the date. All-day items (`time: false`) show the day only.
     func dueLabel(_ group: DueGroup, time: Bool = true) -> String {
         let f = Date.FormatStyle(locale: Lang.locale)
+        // A deadline at midnight ends the day before: shown on that day at 24:00, as in the calendar.
+        let midnight = time && AllDay.day(of: self, isDeadline: true) < Calendar.current.startOfDay(for: self)
         switch group {
-        // Under Today or Tomorrow, a midnight deadline ends that day: "24:00", as in the calendar.
         case .today, .tomorrow:
             guard time else { return formatted(f.weekday(.wide)) }
-            return AllDay.day(of: self, isDeadline: true) < Calendar.current.startOfDay(for: self) ? "24:00" : formatted(f.hour().minute())
-        case .thisWeek: return formatted(time ? f.weekday(.wide).hour().minute() : f.weekday(.wide))
+            return midnight ? "24:00" : formatted(f.hour().minute())
+        case .thisWeek:
+            if midnight { return addingTimeInterval(-1).formatted(f.weekday(.wide)) + " 24:00" }
+            return formatted(time ? f.weekday(.wide).hour().minute() : f.weekday(.wide))
         case .overdue, .later: return formatted(time ? f.day().month(.abbreviated).hour().minute() : f.day().month(.abbreviated))
         }
     }

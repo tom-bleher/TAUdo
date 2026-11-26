@@ -423,8 +423,8 @@ final class AppModel {
 
     private var due: [Deadline] { data.dueDeadlines() }
 
-    /// Upcoming exams, for the Exams tab.
-    var exams: [Deadline] { deadlines.filter { $0.isExam && $0.due >= now } }
+    /// Upcoming exams, for the Exams tab; one under way stays until it ends.
+    var exams: [Deadline] { deadlines.filter { $0.isExam && $0.event.end >= now } }
 
     /// Not done and missed within the last week.
     var overdue: [Deadline] {
