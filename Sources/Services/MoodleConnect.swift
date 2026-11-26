@@ -107,7 +107,6 @@ enum MoodleConnect {
         alert(__LOGIN__); return;
       }
       const sesskey = M.cfg.sesskey;
-      const from = Math.floor(Date.now() / 1000) - 150 * 86400;
       const cid = Number(M.cfg.courseId || 0);
       // Ask before the slow part, so the question doesn't wait for it.
       const wantDownload = /\/course\/view\.php$/.test(location.pathname) && cid > 1 && confirm(__ASK__);
@@ -205,12 +204,14 @@ enum MoodleConnect {
         try {
           const LIMIT = 50;
           // Events due from two weeks ago (earlier ones were seen on earlier clicks) to two months ahead.
-          const since = Date.now() / 1000 - 14 * 86400;
+          const since = Math.floor(Date.now() / 1000) - 14 * 86400;
           const months = [], d = new Date(since * 1000), end = new Date(Date.now() + 60 * 86400000);
-          d.setDate(1);
+          // Midnight on the 1st, so a daylight saving change can't push the last month past `end`.
+          d.setDate(1); d.setHours(0, 0, 0, 0);
           while (d <= end) { months.push([d.getFullYear(), d.getMonth() + 1]); d.setMonth(d.getMonth() + 1); }
           const [[pending], views] = await Promise.all([
-            ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: from, limitnum: LIMIT}]]),
+            // From `since` too: older overdue items would otherwise fill the list's 50 places.
+            ajax([["core_calendar_get_action_events_by_timesort", {timesortfrom: since, limitnum: LIMIT}]]),
             ajax(months.map(([y, m]) => ["core_calendar_get_calendar_monthly_view", {year: y, month: m, courseid: 1, day: 1}]))]);
           const events = [];
           for (const v of views) {
