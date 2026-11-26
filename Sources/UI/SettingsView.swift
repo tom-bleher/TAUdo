@@ -462,11 +462,12 @@ struct CoursesSettings: View {
             }
         }
         .frame(width: SettingsView.width, height: 430)
+        // Names, Moodle links and rows show up in reminders and the calendar.
+        .onChange(of: model.data.courses) { model.push() }
         .confirmationDialog(Text("Delete “\(deleting?.name ?? "")”?"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Delete course", role: .destructive) {
                 model.data.courses.removeAll { $0.id == deleting?.id }
                 selection = nil
-                model.push()
             }
         } message: { Text("Its progress cubes are deleted too. Moodle deadlines stay.") }
     }
